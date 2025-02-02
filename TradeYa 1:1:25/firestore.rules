@@ -1,0 +1,47 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isValidConnection() {
+      return request.resource.data.keys().hasOnly(['userId', 'status', 'timestamp']) &&
+             request.resource.data.userId is string &&
+             request.resource.data.status in ['pending', 'accepted', 'declined'] &&
+             request.resource.data.timestamp is timestamp;
+    }
+
+    // User connections (received requests)
+    match /users/{userId}/connections/{connectionId} {
+      allow read: if isAuthenticated() && isOwner(userId);
+      allow create: if isAuthenticated() && 
+                   connectionId.split('_')[0] == request.auth.uid &&
+                   isValidConnection();
+      allow update: if isAuthenticated() && isOwner(userId);
+      allow delete: if isAuthenticated() && isOwner(userId);
+    }
+
+    // Sent requests
+    match /users/{userId}/sent_requests/{requestId} {
+      allow read: if isAuthenticated() && isOwner(userId);
+      allow create: if isAuthenticated() && 
+                   isOwner(userId) &&
+                   requestId.split('_')[0] == request.auth.uid &&
+                   isValidConnection();
+      allow update: if isAuthenticated() && isOwner(userId);
+      allow delete: if isAuthenticated() && isOwner(userId);
+    }
+
+    // Other collections...
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isOwner(userId);
+    }
+  }
+}
