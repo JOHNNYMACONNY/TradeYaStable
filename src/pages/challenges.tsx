@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useAdmin } from '../contexts/AdminContext';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Challenge } from '../types';
@@ -10,6 +11,7 @@ import { showError } from '../lib/alerts';
 
 export function Challenges() {
   const { user } = useAuth();
+  const { isAdmin } = useAdmin();
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -173,17 +175,19 @@ export function Challenges() {
             </button>
           </div>
 
-          {/* Refresh Button */}
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="flex items-center gap-2 px-4 py-2 bg-earth-800/50 backdrop-blur-sm 
-                     text-white rounded-lg hover:bg-earth-800/70 transition-all duration-300
-                     disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
-            {refreshing ? 'Refreshing...' : 'Check for New Challenges'}
-          </button>
+          {/* Refresh Button - Only visible to admins */}
+          {isAdmin && (
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="flex items-center gap-2 px-4 py-2 bg-earth-800/50 backdrop-blur-sm 
+                       text-white rounded-lg hover:bg-earth-800/70 transition-all duration-300
+                       disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
+              {refreshing ? 'Refreshing...' : 'Check for New Challenges'}
+            </button>
+          )}
         </div>
 
         {/* Challenges Grid */}
@@ -220,14 +224,16 @@ export function Challenges() {
                   <p className="text-gray-600 mb-6">
                     There are no active challenges at the moment. Click refresh to check for new ones.
                   </p>
-                  <button
-                    onClick={handleRefresh}
-                    disabled={refreshing}
-                    className="btn-primary inline-flex items-center gap-2"
-                  >
-                    <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-                    Check for New Challenges
-                  </button>
+                  {isAdmin && (
+                    <button
+                      onClick={handleRefresh}
+                      disabled={refreshing}
+                      className="btn-primary inline-flex items-center gap-2"
+                    >
+                      <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                      Check for New Challenges
+                    </button>
+                  )}
                 </div>
               </div>
             )}
