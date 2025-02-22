@@ -14,9 +14,7 @@
     "types": ["node", "react", "vitest"],
 
     /* Bundler mode */
-    "moduleResolution": "bundler", // Remove the array, just use "bundler"
-    // Potential issue: Some packages might not be compatible with bundler resolution
-    // Recommendation: Add fallback resolution
+    "moduleResolution": ["bundler", "node"],
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "moduleDetection": "force",
