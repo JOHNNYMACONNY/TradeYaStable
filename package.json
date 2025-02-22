@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "verify-deployment": "node scripts/verify-deployment.js",
     "migrate:conversations": "npm run migrate:update-conversations && npm run migrate:consolidate-conversations",
     "migrate:update-conversations": "ts-node scripts/update-existing-conversations.ts",
     "migrate:consolidate-conversations": "ts-node scripts/consolidate-conversations.ts",

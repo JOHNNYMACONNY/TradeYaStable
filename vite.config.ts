@@ -9,7 +9,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, './src')
-    }
+    },
+    extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json']
   },
   css: {
     devSourcemap: true,
@@ -21,6 +22,8 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: true,
+    target: 'esnext',
+    minify: 'esbuild',
     // Optimize chunks
     rollupOptions: {
       output: {
