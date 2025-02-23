@@ -1,98 +1,82 @@
 import { useState, useEffect } from 'react';
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  addDoc,
-  updateDoc,
-  query,
-  where,
-  orderBy,
-  limit,
-  DocumentData,
-  QueryConstraint
-} from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { getDocs, onSnapshot, QueryConstraint, DocumentData } from 'firebase/firestore';
+import { collections, withRetry } from '../lib/firebase';
+
+interface FirestoreState<T> {
+  data: T[];
+  loading: boolean;
+  error: Error | null;
+}
 
 export function useFirestore<T extends DocumentData>(
-  collectionName: string,
-  constraints?: QueryConstraint[]
+  collectionName: keyof typeof collections,
+  queryConstraints: QueryConstraint[] = []
 ) {
-  const [data, setData] = useState<T[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const [state, setState] = useState<FirestoreState<T>>({
+    data: [],
+    loading: true,
+    error: null,
+  });
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const q = constraints
-          ? query(collection(db, collectionName), ...constraints)
-          : collection(db, collectionName);
-        
-        const querySnapshot = await getDocs(q);
-        const documents = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as T[];
-        
-        setData(documents);
-        setLoading(false);
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error('An error occurred'));
-        setLoading(false);
+    const collectionRef = collections[collectionName];
+    if (!collectionRef) {
+      setState({
+        data: [],
+        loading: false,
+        error: new Error(`Collection ${collectionName} not found`),
+      });
+      return;
+    }
+
+    // Set up real-time listener with retry mechanism
+    const unsubscribe = withRetry(
+      () =>
+        onSnapshot(
+          collectionRef,
+          (snapshot) => {
+            const data = snapshot.docs.map((doc) => ({
+              id: doc.id,
+              ...doc.data(),
+            })) as T[];
+
+            setState({
+              data,
+              loading: false,
+              error: null,
+            });
+          },
+          (error) => {
+            console.error(`Firestore subscription error for ${collectionName}:`, error);
+            setState((prev) => ({
+              ...prev,
+              loading: false,
+              error: error as Error,
+            }));
+          }
+        ),
+      3, // maxRetries
+      1000, // baseDelay
+      (attempt, error) => {
+        console.warn(
+          `Retrying Firestore subscription for ${collectionName} (attempt ${attempt}):`,
+          error
+        );
       }
+    ).catch((error) => {
+      console.error(`Failed to set up Firestore subscription for ${collectionName}:`, error);
+      setState((prev) => ({
+        ...prev,
+        loading: false,
+        error: error as Error,
+      }));
+    });
+
+    // Cleanup subscription
+    return () => {
+      unsubscribe?.();
     };
+  }, [collectionName, ...queryConstraints]);
 
-    fetchData();
-  }, [collectionName, constraints]);
-
-  const add = async (data: Omit<T, 'id'>) => {
-    try {
-      const docRef = await addDoc(collection(db, collectionName), {
-        ...data,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      });
-      return docRef.id;
-    } catch (err) {
-      throw err instanceof Error ? err : new Error('Failed to add document');
-    }
-  };
-
-  const update = async (id: string, data: Partial<T>) => {
-    try {
-      const docRef = doc(db, collectionName, id);
-      await updateDoc(docRef, {
-        ...data,
-        updatedAt: new Date()
-      });
-    } catch (err) {
-      throw err instanceof Error ? err : new Error('Failed to update document');
-    }
-  };
-
-  const getById = async (id: string): Promise<T> => {
-    try {
-      const docRef = doc(db, collectionName, id);
-      const docSnap = await getDoc(docRef);
-      
-      if (docSnap.exists()) {
-        return { id: docSnap.id, ...docSnap.data() } as T;
-      } else {
-        throw new Error('Document not found');
-      }
-    } catch (err) {
-      throw err instanceof Error ? err : new Error('Failed to get document');
-    }
-  };
-
-  return {
-    data,
-    loading,
-    error,
-    add,
-    update,
-    getById
-  };
+  return state;
 }
