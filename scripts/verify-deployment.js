@@ -1,11 +1,8 @@
 #!/usr/bin/env node
 
-const fs = require('fs');
-const path = require('path');
-const util = require('util');
-const readdir = util.promisify(fs.readdir);
-const readFile = util.promisify(fs.readFile);
-const stat = util.promisify(fs.stat);
+import * as fs from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 
 // Colors for console output
 const colors = {
@@ -19,10 +16,10 @@ const issues = [];
 const warnings = [];
 
 async function getAllFiles(dir, fileList = []) {
-  const files = await readdir(dir);
+  const files = await fs.readdir(dir);
   for (const file of files) {
     const filePath = path.join(dir, file);
-    const stats = await stat(filePath);
+    const stats = await fs.stat(filePath);
     
     if (stats.isDirectory() && !file.startsWith('node_modules') && !file.startsWith('.')) {
       await getAllFiles(filePath, fileList);
@@ -34,7 +31,7 @@ async function getAllFiles(dir, fileList = []) {
 }
 
 async function verifyImports(filePath) {
-  const content = await readFile(filePath, 'utf8');
+  const content = await fs.readFile(filePath, 'utf8');
   const lines = content.split('\n');
   
   const importRegex = /from ['"]([^'"]+)['"]/g;
@@ -54,9 +51,10 @@ async function verifyImports(filePath) {
         let found = false;
         for (const ext of possibleExtensions) {
           const testPath = fullPath + ext;
-          if (fs.existsSync(testPath)) {
+          try {
+            await fs.access(testPath);
             // Check case sensitivity
-            const actualPath = fs.readdirSync(path.dirname(testPath))
+            const actualPath = (await fs.readdir(path.dirname(testPath)))
                                .find(f => f.toLowerCase() === path.basename(testPath).toLowerCase());
             if (actualPath && actualPath !== path.basename(testPath)) {
               issues.push({
@@ -67,6 +65,9 @@ async function verifyImports(filePath) {
             }
             found = true;
             break;
+          } catch {
+            // File doesn't exist with this extension, continue checking others
+            continue;
           }
         }
         
@@ -84,7 +85,7 @@ async function verifyImports(filePath) {
 
 async function verifyEnvironmentVariables() {
   // Check for .env.development variables
-  const envContent = await readFile('.env.development', 'utf8').catch(() => '');
+  const envContent = await fs.readFile('.env.development', 'utf8').catch(() => '');
   const envVars = new Set(envContent.split('\n')
     .map(line => line.split('=')[0])
     .filter(Boolean));
@@ -92,7 +93,7 @@ async function verifyEnvironmentVariables() {
   // Get environment variables used in the code
   const files = await getAllFiles('src');
   for (const file of files) {
-    const content = await readFile(file, 'utf8');
+    const content = await fs.readFile(file, 'utf8');
     const envUsageRegex = /process\.env\.(\w+)/g;
     let match;
     
