@@ -1,11 +1,4 @@
-Diagnosis: The build failure is due to a ReferenceError caused by using require in an ES module scope in the verify-deployment.js script.
-
-Solution: To fix this issue:
-
-Replace require with import in the verify-deployment.js script.
-Make sure that the file containing the import statements is committed to the repository.
-Verify that the package referred to in the import statement is present in the package.json.
-After making these changes, re-run the build to ensure it completes successfully.import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useAdmin } from '../contexts/AdminContext';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
