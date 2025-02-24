@@ -31,16 +31,11 @@ export default defineConfig({
           vendor: ['react', 'react-dom', 'react-router-dom'],
           firebase: ['firebase/app', 'firebase/firestore', 'firebase/auth', 'firebase/storage']
         },
-        // Add chunk loading retry logic
-        experimentalMinChunkSize: 10000,
-        chunkFileNames: 'assets/[name]-[hash].js',
-        // Add dynamic import fallback
-        dynamicImportFallback: 'commonjs'
+        chunkFileNames: 'assets/[name]-[hash].js'
       },
-      // Add error handling for chunk loading
       onwarn(warning, warn) {
-        if (warning.code === 'CIRCULAR_DEPENDENCY') return
-        warn(warning)
+        if (warning.code === 'CIRCULAR_DEPENDENCY') return;
+        warn(warning);
       }
     }
   },

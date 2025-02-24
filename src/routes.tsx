@@ -4,6 +4,7 @@ import { BannerPreview } from './pages/BannerPreview';
 import { Messages } from './pages/messages';
 import { Discover } from './pages/discover';
 import { CreateProject } from './pages/createproject';
+import { CreateTrade } from './pages/createtrade';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 export function AppRoutes() {
@@ -19,6 +20,7 @@ export function AppRoutes() {
         <Route path="/messages" element={<Messages />} />
         <Route path="/messages/:id" element={<Messages />} />
         <Route path="/create-project" element={<CreateProject />} />
+        <Route path="/create-trade" element={<CreateTrade />} />
       </Route>
     </Routes>
   );
