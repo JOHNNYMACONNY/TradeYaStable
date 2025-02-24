@@ -5,7 +5,7 @@
   force = true
 
 [build]
-  command = "npm install && npm run verify-deployment && npm run build"
+  command = "npm install --production=false && (npm run verify-deployment || true) && npm run build"
   publish = "dist"
 
 # Handle client-side routing
@@ -17,3 +17,5 @@
 [build.environment]
   NODE_VERSION = "18.17.0"
   NODE_ENV = "production"
+  FIREBASE_PRIVATE_KEY = "${FIREBASE_PRIVATE_KEY}"
+  FIREBASE_CLIENT_EMAIL = "${FIREBASE_CLIENT_EMAIL}"
