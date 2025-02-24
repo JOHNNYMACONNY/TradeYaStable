@@ -1,23 +1,24 @@
 import { Routes, Route } from 'react-router-dom';
-import { Layout } from './components/Layout';
-import { Home } from './pages/Home';
 import { Profile } from './pages/profile';
 import { BannerPreview } from './pages/BannerPreview';
+import { Messages } from './pages/messages';
+import { Discover } from './pages/discover';
+import { CreateProject } from './pages/createproject';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 export function AppRoutes() {
   return (
     <Routes>
-      <Route element={<Layout />}>
-        {/* Public Routes */}
-        <Route path="/" element={<Home />} />
-        <Route path="/banner/:bannerId/preview" element={<BannerPreview />} />
-        
-        {/* Protected Routes */}
-        <Route element={<ProtectedRoute />}>
-          <Route path="/profile" element={<Profile />} />
-          {/* Add other protected routes here */}
-        </Route>
+      {/* Public Routes */}
+      <Route path="/banner/:bannerId/preview" element={<BannerPreview />} />
+      
+      {/* Protected Routes */}
+      <Route element={<ProtectedRoute />}>
+        <Route path="/" element={<Discover />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/messages" element={<Messages />} />
+        <Route path="/messages/:id" element={<Messages />} />
+        <Route path="/create-project" element={<CreateProject />} />
       </Route>
     </Routes>
   );

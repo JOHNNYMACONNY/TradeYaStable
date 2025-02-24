@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Filter, Tag, Clock, User } from 'lucide-react';
-import { useFirestore } from '../hooks/useFirestore';
+import { useFirestore } from '../hooks';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import type { Trade, UserProfile } from '../types';

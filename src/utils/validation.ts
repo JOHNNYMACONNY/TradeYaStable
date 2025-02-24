@@ -1,13 +1,13 @@
-export function validateEmail(email: string): boolean {
-  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return re.test(email);
+export function isValidEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
 }
 
-export function validatePassword(password: string): {
+export function isValidPassword(password: string): {
   isValid: boolean;
   errors: string[];
 } {
-  const errors: string[] = [];
+  const errors = [];
   
   if (password.length < 8) {
     errors.push('Password must be at least 8 characters long');
@@ -28,15 +28,28 @@ export function validatePassword(password: string): {
   };
 }
 
-export function validateUsername(username: string): boolean {
-  return /^[a-zA-Z0-9_-]{3,20}$/.test(username);
-}
-
-export function validateUrl(url: string): boolean {
+export function isValidUrl(url: string): boolean {
   try {
     new URL(url);
     return true;
   } catch {
     return false;
   }
+}
+
+export function validateRequired(value: any, fieldName: string): string | null {
+  if (!value || (typeof value === 'string' && !value.trim())) {
+    return `${fieldName} is required`;
+  }
+  return null;
+}
+
+export function validateLength(value: string, fieldName: string, min?: number, max?: number): string | null {
+  if (min && value.length < min) {
+    return `${fieldName} must be at least ${min} characters`;
+  }
+  if (max && value.length > max) {
+    return `${fieldName} must be no more than ${max} characters`;
+  }
+  return null;
 }

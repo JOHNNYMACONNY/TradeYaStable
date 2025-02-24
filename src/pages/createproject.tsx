@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { useFirestore } from '../hooks/useFirestore';
+import { useFirestore } from '../hooks';
 import { X, Plus } from 'lucide-react';
 import type { Collaboration } from '../types';
 

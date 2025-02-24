@@ -13,10 +13,19 @@ function getAdminApp(): App {
     if (getApps().length > 0) {
       appInstance = getApps()[0];
     } else {
-      const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-      
-      if (!process.env.VITE_FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !privateKey) {
+      if (!process.env.VITE_FIREBASE_PROJECT_ID || 
+          !process.env.FIREBASE_CLIENT_EMAIL || 
+          !process.env.FIREBASE_PRIVATE_KEY) {
         throw new Error('Missing Firebase Admin configuration');
+      }
+
+      // Parse the private key, handling both JSON string and regular string formats
+      let privateKey = process.env.FIREBASE_PRIVATE_KEY;
+      try {
+        privateKey = JSON.parse(privateKey);
+      } catch {
+        // If parsing fails, assume it's already in the correct format
+        privateKey = privateKey.replace(/\\n/g, '\n');
       }
 
       appInstance = initializeApp({
@@ -73,18 +82,6 @@ export const withAdminRetry = async <T>(
       const delay = baseDelay * Math.pow(2, attempt - 1);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
- // User document structure
-/users/{userId}
-  - uid: string
-  - email: string
-  - displayName: string
-  - username?: string // Add this if not already present
-
-// Networking subcollection
-/users/{userId}/connections/{connectionId}
-  - userId: string (reference to /users)
-  - status: "pending" | "accepted" | "declined"
-  - timestamp: Date
   } 
   throw lastError;
 };

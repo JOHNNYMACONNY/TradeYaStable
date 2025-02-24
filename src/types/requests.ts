@@ -1,48 +1,25 @@
 import { Timestamp } from 'firebase/firestore';
 
-export type RequestStatus = 'pending' | 'accepted' | 'declined';
-export type RequestType = 'application' | 'invitation';
-
-interface BaseRequest {
+export interface TradeRequest {
   id: string;
-  senderId: string;
-  recipientId: string;
-  status: RequestStatus;
-  type: RequestType;
-  createdAt: Timestamp;
-  message?: string;
-  expiresAt?: Timestamp;
-  notificationSent?: boolean;
-  viewedAt?: Timestamp;
-  sender?: { // Add the sender field
-    id: string;
-    displayName: string;
-    photoURL: string;
-  };
-}
-
-export interface TradeRequest extends BaseRequest {
   tradeId: string;
-  tradeName: string;
-  terms?: string;
+  requesterId: string;
+  traderId: string;
+  status: 'pending' | 'accepted' | 'rejected' | 'cancelled';
+  message?: string;
+  offeredSkills: string[];
+  createdAt: Date | Timestamp;
+  updatedAt: Date | Timestamp;
+  responseMessage?: string;
 }
 
-export interface ProjectPositionRequest extends BaseRequest {
-  projectId: string;
-  projectName: string;
-  positionId: string;
-  positionName: string;
-  requiredSkills?: string[];
-  proposedSkills?: string[];
-}
-
-export type Request = TradeRequest | ProjectPositionRequest;
-
-export interface RequestNotification {
+export interface CollaborationRequest {
   id: string;
-  requestId: string;
-  recipientId: string;
-  type: 'trade_request' | 'project_request';
-  read: boolean;
-  createdAt: Timestamp;
+  projectId: string;
+  roleId: string;
+  applicantId: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  message: string;
+  createdAt: Date | Timestamp;
+  updatedAt: Date | Timestamp;
 }
