@@ -1,8 +1,10 @@
 import * as functions from 'firebase-functions';
-import { auth } from 'firebase-admin';
+import { getAuth } from 'firebase-admin/auth';
+import { db } from './firebase';
 
-export const setAdminRole = functions.https.onCall(async (data, context) => {
-  // Verify the requester is already an admin
+// HTTP function for adding admin role
+export const addAdminRole = functions.https.onCall(async (data, context) => {
+  // Verify caller is admin
   if (!context.auth?.token.admin) {
     throw new functions.https.HttpsError(
       'permission-denied',
@@ -19,28 +21,33 @@ export const setAdminRole = functions.https.onCall(async (data, context) => {
   }
 
   try {
-    // Get user by email
+    const auth = getAuth();
     const user = await auth.getUserByEmail(email);
-    
-    // Set admin claim
     await auth.setCustomUserClaims(user.uid, { admin: true });
-    
-    return { success: true };
+
+    // Add user to admins collection
+    await db.collection('admins').doc(user.uid).set({
+      email: user.email,
+      addedBy: context.auth.uid,
+      addedAt: new Date()
+    });
+
+    return { message: `Success! ${email} has been made an admin.` };
   } catch (error) {
-    console.error('Error setting admin role:', error);
     throw new functions.https.HttpsError(
       'internal',
-      'Failed to set admin role'
+      'Error adding admin role'
     );
   }
 });
 
+// HTTP function for removing admin role
 export const removeAdminRole = functions.https.onCall(async (data, context) => {
-  // Verify the requester is an admin
+  // Verify caller is admin
   if (!context.auth?.token.admin) {
     throw new functions.https.HttpsError(
       'permission-denied',
-      'Only admins can remove admin privileges'
+      'Only admins can remove other admins'
     );
   }
 
@@ -53,18 +60,18 @@ export const removeAdminRole = functions.https.onCall(async (data, context) => {
   }
 
   try {
-    // Get user by email
+    const auth = getAuth();
     const user = await auth.getUserByEmail(email);
-    
-    // Remove admin claim
     await auth.setCustomUserClaims(user.uid, { admin: false });
-    
-    return { success: true };
+
+    // Remove user from admins collection
+    await db.collection('admins').doc(user.uid).delete();
+
+    return { message: `Success! ${email} has been removed as an admin.` };
   } catch (error) {
-    console.error('Error removing admin role:', error);
     throw new functions.https.HttpsError(
       'internal',
-      'Failed to remove admin role'
+      'Error removing admin role'
     );
   }
 });

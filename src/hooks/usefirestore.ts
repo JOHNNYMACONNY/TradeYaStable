@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getDocs, onSnapshot, QueryConstraint, DocumentData } from 'firebase/firestore';
+import { getDocs, onSnapshot, query, QueryConstraint, DocumentData } from 'firebase/firestore';
 import { collections, withRetry } from '../lib/firebase';
 
 interface FirestoreState<T> {
@@ -29,11 +29,13 @@ export function useFirestore<T extends DocumentData>(
       return;
     }
 
+    let unsubscribe: (() => void) | undefined;
+
     // Set up real-time listener with retry mechanism
-    const unsubscribe = withRetry(
+    withRetry(
       () =>
         onSnapshot(
-          collectionRef,
+          query(collectionRef, ...queryConstraints),
           (snapshot) => {
             const data = snapshot.docs.map((doc) => ({
               id: doc.id,
@@ -63,7 +65,11 @@ export function useFirestore<T extends DocumentData>(
           error
         );
       }
-    ).catch((error) => {
+    )
+    .then((unsub) => {
+      unsubscribe = unsub;
+    })
+    .catch((error) => {
       console.error(`Failed to set up Firestore subscription for ${collectionName}:`, error);
       setState((prev) => ({
         ...prev,
@@ -74,7 +80,9 @@ export function useFirestore<T extends DocumentData>(
 
     // Cleanup subscription
     return () => {
-      unsubscribe?.();
+      if (unsubscribe) {
+        unsubscribe();
+      }
     };
   }, [collectionName, ...queryConstraints]);
 

@@ -39,6 +39,25 @@
            hover:bg-earth-700 transition-colors duration-300
            disabled:opacity-50 disabled:cursor-not-allowed;
   }
+
+  .status-badge {
+    @apply px-3 py-1 rounded-full text-sm font-medium;
+  }
+
+  .status-badge-active {
+    @apply bg-accent-clay text-white
+           ring-2 ring-accent-clay ring-opacity-50;
+  }
+
+  .status-badge-pending {
+    @apply bg-accent-ochre text-earth-900
+           ring-2 ring-accent-ochre ring-opacity-50;
+  }
+
+  .status-badge-completed {
+    @apply bg-accent-sage text-earth-900
+           ring-2 ring-accent-sage ring-opacity-50;
+  }
 }
 
 @layer utilities {

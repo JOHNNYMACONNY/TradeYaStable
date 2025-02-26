@@ -1,165 +1,126 @@
 import * as functions from 'firebase-functions';
-import { HfInference } from '@huggingface/inference';
 import { db, withRetry } from './firebase';
-import { Challenge } from './types';
+import { DocumentSnapshot } from 'firebase-admin/firestore';
 
-// Initialize Hugging Face client
-const hf = new HfInference(process.env.HUGGINGFACE_API_KEY);
-
-// Cache for challenge templates to avoid redundant API calls
-const challengeCache = new Map<string, Challenge>();
-const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
-
-// Generate challenge using Hugging Face API
-async function generateChallengeWithAI(type: 'weekly' | 'monthly'): Promise<Partial<Challenge>> {
-  const prompt = `Generate a ${type} challenge for a skill-trading platform.
-    Format: JSON
-    Guidelines:
-    - Title should be engaging
-    - Description should be motivating
-    - Requirements should be achievable within ${type === 'weekly' ? '7 days' : 'a month'}
-    - XP rewards: ${type === 'weekly' ? '100-300' : '500-1000'}
-    Include: title, description, requirements (array of {type, count, skillCategory}), rewards (xp, badge)`;
-
-  const response = await hf.textGeneration({
-    model: 'mistralai/Mixtral-8x7B-Instruct-v0.1',
-    inputs: prompt,
-    parameters: {
-      max_new_tokens: 500,
-      temperature: 0.7,
-      return_full_text: false
-    }
-  });
-
-  try {
-    const challenge = JSON.parse(response.generated_text);
-    return validateAndCleanChallenge(challenge, type);
-  } catch (error) {
-    console.error('Failed to parse challenge:', error);
-    return getFallbackChallenge(type);
-  }
+interface Challenge {
+  id: string;
+  title: string;
+  description: string;
+  type: 'weekly' | 'monthly';
+  status: 'pending' | 'live' | 'archived';
+  requirements: {
+    type: string;
+    count: number;
+    skillCategory: string;
+  }[];
+  rewards: {
+    xp: number;
+    badge: string;
+  };
+  startDate: Date | null;
+  endDate: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-// Scheduled function to generate challenges
-export const generateWeeklyChallenges = functions.pubsub
-  .schedule('every monday 00:00')
-  .timeZone('UTC')
-  .onRun(async () => {
-    return await withRetry(async () => {
-      const batch = db.batch();
-      
-      // Archive old pending challenges
-      const oldPendingSnapshot = await db.collection('challenges')
-        .where('status', '==', 'pending')
-        .where('type', '==', 'weekly')
-        .get();
-      
-      oldPendingSnapshot.docs.forEach(doc => {
-        batch.update(doc.ref, { status: 'archived' });
-      });
 
-      // Generate exactly 10 weekly challenges
-      for (let i = 0; i < 10; i++) {
-        const challenge = await generateChallengeWithAI('weekly');
-        const docRef = db.collection('challenges').doc();
-        
-        batch.set(docRef, {
-          ...challenge,
-          status: 'pending',
-          type: 'weekly',
-          startDate: null,
-          endDate: null,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        });
-      }
+// Function to archive expired challenges
+export const archiveExpiredChallenges = functions.pubsub.schedule('every 1 hours').timeZone('UTC').onRun(async () => {
+  const now = new Date();
+  
+  // Get live challenges that have passed their end date
+  const expiredSnapshot = await db.collection('challenges')
+    .where('status', '==', 'live')
+    .where('endDate', '<', now)
+    .get();
 
-      await batch.commit();
-      console.log('Generated weekly challenges successfully');
+  if (expiredSnapshot.empty) {
+    console.log('No expired challenges found');
+    return null;
+  }
+
+  const batch = db.batch();
+  let archivedCount = 0;
+
+  expiredSnapshot.docs.forEach((doc: DocumentSnapshot) => {
+    batch.update(doc.ref, {
+      status: 'archived',
+      updatedAt: now
     });
+    archivedCount++;
   });
 
-export const generateMonthlyChallenges = functions.pubsub
-  .schedule('0 0 1 * *') // First day of each month
-  .timeZone('UTC')
-  .onRun(async () => {
-    return await withRetry(async () => {
-      const batch = db.batch();
-      
-      // Archive old pending challenges
-      const oldPendingSnapshot = await db.collection('challenges')
-        .where('status', '==', 'pending')
-        .where('type', '==', 'monthly')
-        .get();
-      
-      oldPendingSnapshot.docs.forEach(doc => {
-        batch.update(doc.ref, { status: 'archived' });
-      });
+  await batch.commit();
+  console.log(`Archived ${archivedCount} expired challenges`);
 
-      // Generate exactly 10 monthly challenges
-      for (let i = 0; i < 10; i++) {
-        const challenge = await generateChallengeWithAI('monthly');
-        const docRef = db.collection('challenges').doc();
-        
-        batch.set(docRef, {
-          ...challenge,
-          status: 'pending',
-          type: 'monthly',
-          startDate: null,
-          endDate: null,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        });
+  // Trigger generation of new challenges if needed
+  const liveSnapshot = await db.collection('challenges')
+    .where('status', 'in', ['live', 'pending'])
+    .get();
+
+  if (liveSnapshot.size < 20) { // We maintain 20 total challenges (10 weekly + 10 monthly)
+    // Count existing challenges by type
+    const counts = { weekly: 0, monthly: 0 };
+    liveSnapshot.docs.forEach((doc: DocumentSnapshot) => {
+      const data = doc.data();
+      const type = data?.type;
+      if (type === 'weekly' || type === 'monthly') {
+        counts[type as keyof typeof counts]++;
       }
-
-      await batch.commit();
-      console.log('Generated monthly challenges successfully');
     });
-  });
+
+    // Log if new challenges are needed
+    if (counts.weekly < 10) {
+      console.log('Fewer than 10 weekly challenges - new ones will be generated by Netlify function');
+    }
+    if (counts.monthly < 10) {
+      console.log('Fewer than 10 monthly challenges - new ones will be generated by Netlify function');
+    }
+  }
+
+  return null;
+});
 
 // Function to activate pending challenges
-export const activateChallenges = functions.pubsub
-  .schedule('every 1 hours')
-  .onRun(async () => {
-    const now = new Date();
-    
-    // Get pending challenges
-    const pendingSnapshot = await db.collection('challenges')
-      .where('status', '==', 'pending')
-      .get();
+export const activateChallenges = functions.pubsub.schedule('every 1 hours').onRun(async () => {
+  const now = new Date();
+  
+  // Get pending challenges
+  const pendingSnapshot = await db.collection('challenges')
+    .where('status', '==', 'pending')
+    .get();
 
-    const batch = db.batch();
-    let activatedCount = 0;
+  const batch = db.batch();
+  let activatedCount = 0;
 
-    pendingSnapshot.docs.forEach(doc => {
-      const challenge = doc.data();
-      const startDate = new Date();
-      const endDate = new Date(startDate);
-      
-      if (challenge.type === 'weekly') {
-        endDate.setDate(endDate.getDate() + 7);
-      } else {
-        endDate.setMonth(endDate.getMonth() + 1);
-      }
-
-      batch.update(doc.ref, {
-        status: 'live',
-        startDate,
-        endDate,
-        updatedAt: now
-      });
-      
-      activatedCount++;
-    });
-
-    if (activatedCount > 0) {
-      await batch.commit();
-      console.log(`Activated ${activatedCount} challenges`);
+  pendingSnapshot.docs.forEach((doc: DocumentSnapshot) => {
+    const challenge = doc.data() as Challenge;
+    const startDate = new Date();
+    const endDate = new Date(startDate);
+    if (challenge.type === 'weekly') {
+      endDate.setDate(endDate.getDate() + 7);
+    } else {
+      endDate.setMonth(endDate.getMonth() + 1);
     }
+
+    batch.update(doc.ref, {
+      status: 'live',
+      startDate,
+      endDate,
+      updatedAt: now
+    });
+    
+    activatedCount++;
   });
 
+  if (activatedCount > 0) {
+    await batch.commit();
+    console.log(`Activated ${activatedCount} challenges`);
+  }
+});
+
 // HTTP function for manual challenge activation
-export const manuallyActivateChallenge = functions.https.onCall(async (data, context) => {
+export const manuallyActivateChallenge = functions.https.onCall(async (data: { challengeId: string }, context) => {
   // Verify admin status
   if (!context.auth?.token.admin) {
     throw new functions.https.HttpsError(
@@ -186,7 +147,8 @@ export const manuallyActivateChallenge = functions.https.onCall(async (data, con
     );
   }
 
-  if (challenge.data()?.status !== 'pending') {
+  const challengeData = challenge.data() as Challenge;
+  if (challengeData?.status !== 'pending') {
     throw new functions.https.HttpsError(
       'failed-precondition',
       'Challenge is not in pending status'
@@ -195,7 +157,7 @@ export const manuallyActivateChallenge = functions.https.onCall(async (data, con
 
   const now = new Date();
   const endDate = new Date(now);
-  if (challenge.data()?.type === 'weekly') {
+  if (challengeData.type === 'weekly') {
     endDate.setDate(endDate.getDate() + 7);
   } else {
     endDate.setMonth(endDate.getMonth() + 1);
