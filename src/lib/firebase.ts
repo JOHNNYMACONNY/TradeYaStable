@@ -1,9 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { 
-  getFirestore, 
-  initializeFirestore,
-  persistentLocalCache,
-  persistentMultipleTabManager,
+  getFirestore,
+  enableMultiTabIndexedDbPersistence,
   collection,
   addDoc,
   getDoc,
@@ -16,7 +14,8 @@ import {
   FirestoreError,
   Timestamp,
   WriteBatch,
-  serverTimestamp
+  serverTimestamp,
+  Firestore
 } from 'firebase/firestore';
 import { 
   getAuth, 
@@ -47,12 +46,51 @@ Object.entries(firebaseConfig).forEach(([key, value]) => {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore with multi-tab persistence
-const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager()
-  })
+// Initialize Firestore and enable persistence
+let firestoreDb: Firestore;
+let collections: ReturnType<typeof getCollections>;
+
+// Initialize collections helper
+const getCollections = (db: Firestore) => ({
+  challenges: collection(db, 'challenges'),
+  users: collection(db, 'users'),
+  trades: collection(db, 'trades'),
+  conversations: collection(db, 'conversations'),
+  messages: collection(db, 'messages'),
+  collaborations: collection(db, 'collaborations')
 });
+
+const initializeFirestore = async () => {
+  if (!firestoreDb) {
+    firestoreDb = getFirestore(app);
+    try {
+      await enableMultiTabIndexedDbPersistence(firestoreDb);
+    } catch (err: any) {
+      if (err.code === 'failed-precondition') {
+        // Multiple tabs open, persistence can only be enabled in one tab at a time.
+        console.warn('Multiple tabs open, persistence enabled in another tab');
+      } else if (err.code === 'unimplemented') {
+        // The current browser doesn't support persistence
+        console.warn('Browser does not support persistence');
+      } else {
+        console.warn('Failed to enable persistence:', err);
+      }
+    }
+    // Initialize collections after Firestore is ready
+    collections = getCollections(firestoreDb);
+  }
+  return firestoreDb;
+};
+
+// Export getters that ensure Firestore is initialized
+export const getDb = async () => {
+  return await initializeFirestore();
+};
+
+export const getCollectionRefs = async () => {
+  await initializeFirestore();
+  return collections;
+};
 
 // Initialize Auth
 const auth = getAuth(app);
@@ -105,20 +143,10 @@ const withRetry = async <T>(
   throw lastError || new Error('Operation failed after retries');
 };
 
-// Initialize collections
-const collections = {
-  challenges: collection(db, 'challenges'),
-  users: collection(db, 'users'),
-  trades: collection(db, 'trades'),
-  conversations: collection(db, 'conversations'),
-  messages: collection(db, 'messages'),
-  collaborations: collection(db, 'collaborations')
-};
-
 // Helper to check if a collection exists
 const checkCollection = async (collectionName: string) => {
+  const db = await getDb();
   try {
-    // Just check collection reference existence
     const colRef = collection(db, collectionName);
     return true;
   } catch (error) {
@@ -153,13 +181,13 @@ const initializeCollections = async () => {
 // Export all necessary Firebase instances and utilities
 export {
   app as default,
-  db,
   auth,
   storage,
   analytics,
   withRetry,
-  collections,
+  getCollectionRefs as collections,
   checkCollection,
   initializeCollections,
-  serverTimestamp
+  serverTimestamp,
+  getDb as db
 };

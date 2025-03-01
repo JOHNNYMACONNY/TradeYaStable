@@ -12,7 +12,7 @@ import {
   getRedirectResult,
   updateProfile
 } from 'firebase/auth';
-import { auth, db, withRetry } from '../lib/firebase';
+import { auth, db as getDb, withRetry } from '../lib/firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 
 interface AuthContextType {
@@ -59,6 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const handleGoogleSignIn = async (user: User) => {
     try {
       await withRetry(async () => {
+        const db = await getDb();
         // Check if user profile exists
         const userDoc = await getDoc(doc(db, 'users', user.uid));
         
@@ -92,6 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await updateProfile(userCredential.user, { displayName });
       
       // Create user profile in Firestore
+      const db = await getDb();
       await setDoc(doc(db, 'users', userCredential.user.uid), {
         email,
         displayName,
