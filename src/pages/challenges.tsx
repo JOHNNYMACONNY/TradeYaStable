@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { useAdmin } from '../contexts/AdminContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useAdmin } from '@/contexts/AdminContext';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
-import { db } from '../lib/firebase';
-import { Challenge } from '../types';
-import { ChallengeCard } from '../components/ChallengeCard';
+import { db } from '@/lib/firebase';
+import { Challenge } from '@/types';
+import { ChallengeCard } from '@components/ChallengeCard';
 import { Trophy, Calendar, RefreshCw, Sparkles, Filter } from 'lucide-react';
-import { checkAndGenerateChallenges } from '../lib/ai-challenges';
-import { showError } from '../lib/alerts';
+import { checkAndGenerateChallenges } from '@/lib/ai-challenges';
+import { showError } from '@/lib/alerts';
 
 export function Challenges() {
   const { user } = useAuth();

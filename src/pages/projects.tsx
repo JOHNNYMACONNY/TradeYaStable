@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Filter, Users, Briefcase, Clock, Tag } from 'lucide-react';
-import { useFirestore } from '../hooks/useFirestore';
-import type { Collaboration } from '../types';
+import { useFirestore } from '@hooks/useFirestore';
+import type { Collaboration } from '@/types';
 
 export function Projects() {
   const navigate = useNavigate();

@@ -7,16 +7,19 @@ import { resolve } from 'path';
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: {
-      '@': resolve(__dirname, './src')
-    },
+    alias: [
+      { find: '@', replacement: resolve(__dirname, './src') },
+      { find: '@hooks', replacement: resolve(__dirname, './src/hooks') },
+      { find: '@components', replacement: resolve(__dirname, './src/components') },
+      { find: '@utils', replacement: resolve(__dirname, './src/utils') }
+    ],
     extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json']
   },
   css: {
     devSourcemap: true,
   },
   optimizeDeps: {
-    include: ['./src/hooks/useFirestore'],
+    include: ['@hooks/useFirestore'],
     exclude: ['lucide-react'],
   },
   build: {

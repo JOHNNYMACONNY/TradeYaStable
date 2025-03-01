@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { useFirestore } from '../hooks/useFirestore';
+import { useAuth } from '@/contexts/AuthContext';
+import { useFirestore } from '@hooks/useFirestore';
 import { X, Plus, Search } from 'lucide-react';
-import type { Trade } from '../types';
-import { UserSearchModal } from '../components/UserSearchModal';
+import type { Trade } from '@/types';
+import { UserSearchModal } from '@components/UserSearchModal';
 
 export function CreateTrade() {
   const navigate = useNavigate();
