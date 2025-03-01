@@ -16,6 +16,7 @@ export default defineConfig({
     devSourcemap: true,
   },
   optimizeDeps: {
+    include: ['./src/hooks/useFirestore'],
     exclude: ['lucide-react'],
   },
   build: {
