@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { doc, getDoc, updateDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Calendar, Users, CheckCircle2, AlertCircle, MessageSquare } from 'lucide-react';
-import { ProfilePicture } from '@components/ProfilePicture';
+import { ProfilePicture } from '../components/ProfilePicture';
 import type { Collaboration, UserProfile } from '../types';
 import { XP_CONFIG, awardExperience, checkAndAwardBadges } from '../lib/reputation';
 

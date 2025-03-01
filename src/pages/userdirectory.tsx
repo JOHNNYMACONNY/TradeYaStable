@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { useFirestore } from '@hooks/useFirestore';
+import { useAuth } from '../contexts/AuthContext';
+import { useFirestore } from '../hooks/useFirestore';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db } from '../lib/firebase';
 import { Search, Tag } from 'lucide-react';
-import type { UserProfile } from '@/types';
-import { UserProfileCard } from '@components/UserProfileCard';
-import { getConnectionStatus, sendConnectionRequest } from '@/lib/networking';
+import type { UserProfile } from '../types';
+import { UserProfileCard } from '../components/UserProfileCard';
+import { getConnectionStatus, sendConnectionRequest } from '../lib/networking';
 
 export function UserDirectory() {
   const navigate = useNavigate();

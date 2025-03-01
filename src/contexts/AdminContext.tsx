@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from './AuthContext';
 import { getIdTokenResult } from 'firebase/auth';
 
 interface AdminContextType {
