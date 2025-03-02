@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": "18.x"
+  },
   "scripts": {
     "verify-deployment": "node scripts/verify-deployment.js",
     "migrate:conversations": "npm run migrate:update-conversations && npm run migrate:consolidate-conversations",
