@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useAdmin } from '../contexts/AdminContext';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { getDb } from '../lib/firebase';
 import { Challenge } from '../types';
 import { ChallengeCard } from '../components/ChallengeCard';
 import { Trophy, Calendar, RefreshCw, Sparkles, Filter } from 'lucide-react';
@@ -22,6 +22,7 @@ export function Challenges() {
 
     try {
       // Fetch both weekly and monthly challenges
+      const db = await getDb();
       const weeklyQuery = query(
         collection(db, 'challenges'),
         where('type', '==', 'weekly'),

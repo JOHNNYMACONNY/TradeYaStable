@@ -15,7 +15,7 @@ import {
   CollectionReference,
   and
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { getDb } from './firebase';
 import { UserProfile, Conversation, Message, ConversationType } from '../types/messaging';
 
 interface ConversationOptions {
@@ -46,6 +46,7 @@ export async function getOrCreateConversation(
 
     // For direct or group conversations without context, check for existing conversation
     if (options.type === 'direct' || (options.type === 'group' && !options.contextId)) {
+      const db = await getDb();
       const conversationsRef = collection(db, 'conversations');
       const q = query(
         conversationsRef,
@@ -82,7 +83,7 @@ export async function getOrCreateConversation(
     }
 
     // Create new conversation
-    const newConversationRef = await addDoc(collection(db, 'conversations'), conversationData);
+    const newConversationRef = await addDoc(collection(await getDb(), 'conversations'), conversationData);
     return newConversationRef.id;
   } catch (error) {
     console.error('Error in getOrCreateConversation:', error);

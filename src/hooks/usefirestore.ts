@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { collection, onSnapshot, query, QueryConstraint, DocumentData } from 'firebase/firestore';
 import { getDb, withRetry } from '../lib/firebase';
+import { useAuth } from '../contexts/AuthContext';
 
 interface FirestoreState<T> {
   data: T[];
@@ -18,7 +19,21 @@ export function useFirestore<T extends DocumentData>(
     error: null,
   });
 
+  // Get auth state
+  const { user, loading: authLoading } = useAuth();
+
   useEffect(() => {
+    // Don't set up subscription until auth is ready and user is logged in
+    if (authLoading) {
+      setState(prev => ({ ...prev, loading: true }));
+      return;
+    }
+
+    if (!user) {
+      setState({ data: [], loading: false, error: null });
+      return;
+    }
+
     let unsubscribe: (() => void) | undefined;
     
     const setupSubscription = async () => {
@@ -111,7 +126,7 @@ export function useFirestore<T extends DocumentData>(
         unsubscribe();
       }
     };
-  }, [collectionName, ...queryConstraints]);
+  }, [collectionName, user, authLoading, ...queryConstraints]);
 
   return state;
 }

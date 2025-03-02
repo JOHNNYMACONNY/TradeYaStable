@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { collection, query, where, getDocs, limit, orderBy, startAt, endAt } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { getDb } from '../lib/firebase';
 import { X, AtSign } from 'lucide-react';
 import type { UserProfile } from '../types/user';
 
@@ -23,6 +23,7 @@ export function UserSearchModal({ isOpen, onClose, onSelectUser, excludeUserId }
     setLoading(true);
     setError('');
     try {
+      const db = await getDb();
       const usersRef = collection(db, 'users');
       const searchTrimmed = searchQuery.trim();
       const searchLower = searchTrimmed.toLowerCase();

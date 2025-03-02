@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Filter, Tag, Clock, User } from 'lucide-react';
+import { Search, Filter, Tag, Clock, User, Users } from 'lucide-react';
 import { useFirestore } from '../hooks';
+import { useAuth } from '../contexts/AuthContext';
 import { doc, getDoc } from 'firebase/firestore';
 import { getDb } from '../lib/firebase';
 import type { Trade, UserProfile } from '../types';
@@ -10,6 +11,7 @@ import { ProfileHoverCard } from '../components/ProfileHoverCard';
 
 export function Discover() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const { data: trades, loading, error } = useFirestore<Trade>('trades');
@@ -133,8 +135,43 @@ export function Discover() {
         </div>
       </div>
 
-      {/* Trades Grid */}
-      {loading ? (
+      {/* Auth Check */}
+      {!user ? (
+        <div className="col-span-full text-center py-12">
+          <div className="bg-earth-800 border border-earth-700 rounded-lg p-8 max-w-2xl mx-auto animate-fade-in">
+            {/* Icon Section */}
+            <div className="mb-6">
+              <div className="mx-auto w-16 h-16 rounded-full bg-accent-clay/10 flex items-center justify-center">
+                <Users className="h-10 w-10 text-accent-clay" />
+              </div>
+            </div>
+            
+            {/* Main Message */}
+            <h2 className="text-2xl font-display font-semibold text-gray-900 mb-3">
+              Welcome to Skill Trading
+            </h2>
+            <p className="text-gray-700 mb-6 max-w-md mx-auto">
+              Join our community to discover skill trading opportunities and connect with other professionals.
+            </p>
+            
+            {/* CTA Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <button 
+                onClick={() => navigate('/signup')}
+                className="btn-primary px-8 py-3 rounded-lg transform transition-all duration-200 hover:scale-105"
+              >
+                Sign Up
+              </button>
+              <button 
+                onClick={() => navigate('/login')}
+                className="btn-secondary px-8 py-3 rounded-lg transform transition-all duration-200 hover:scale-105"
+              >
+                Log In
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3].map((n) => (
             <div key={n} className="animate-pulse card p-6">

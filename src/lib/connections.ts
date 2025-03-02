@@ -11,7 +11,7 @@ import {
   serverTimestamp,
   Timestamp 
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { getDb } from './firebase';
 import { Connection, UserProfile } from '../types';
 import { showError, showSuccess } from './alerts';
 
@@ -19,6 +19,7 @@ import { showError, showSuccess } from './alerts';
 export async function sendConnectionRequest(fromUserId: string, toUserId: string): Promise<void> {
   try {
     // Check if connection already exists
+    const db = await getDb();
     const connectionsRef = collection(db, `users/${toUserId}/connections`);
     const q = query(connectionsRef, where('userId', '==', fromUserId));
     const existingConnections = await getDocs(q);
@@ -29,7 +30,7 @@ export async function sendConnectionRequest(fromUserId: string, toUserId: string
 
     // Create connection request
     const connectionId = `${fromUserId}_${toUserId}`;
-    await setDoc(doc(db, `users/${toUserId}/connections`, connectionId), {
+    await setDoc(doc(await getDb(), `users/${toUserId}/connections`, connectionId), {
       userId: fromUserId,
       status: 'pending',
       timestamp: serverTimestamp()
@@ -49,6 +50,7 @@ export async function sendConnectionRequest(fromUserId: string, toUserId: string
 // Accept a connection request
 export async function acceptConnectionRequest(userId: string, connectionId: string): Promise<void> {
   try {
+    const db = await getDb();
     const connectionRef = doc(db, `users/${userId}/connections`, connectionId);
     const connectionDoc = await getDoc(connectionRef);
 
@@ -69,7 +71,7 @@ export async function acceptConnectionRequest(userId: string, connectionId: stri
 
     // Create reciprocal connection
     const reciprocalId = `${userId}_${connection.userId}`;
-    await setDoc(doc(db, `users/${connection.userId}/connections`, reciprocalId), {
+    await setDoc(doc(await getDb(), `users/${connection.userId}/connections`, reciprocalId), {
       userId: userId,
       status: 'accepted',
       timestamp: serverTimestamp()
@@ -89,6 +91,7 @@ export async function acceptConnectionRequest(userId: string, connectionId: stri
 // Decline a connection request
 export async function declineConnectionRequest(userId: string, connectionId: string): Promise<void> {
   try {
+    const db = await getDb();
     const connectionRef = doc(db, `users/${userId}/connections`, connectionId);
     await deleteDoc(connectionRef);
     await showSuccess('Connection Declined', 'The connection request has been declined');
@@ -106,6 +109,7 @@ export async function declineConnectionRequest(userId: string, connectionId: str
 export async function removeConnection(userId: string, connectionId: string): Promise<void> {
   try {
     // Get connection details first
+    const db = await getDb();
     const connectionRef = doc(db, `users/${userId}/connections`, connectionId);
     const connectionDoc = await getDoc(connectionRef);
 
@@ -118,7 +122,7 @@ export async function removeConnection(userId: string, connectionId: string): Pr
     // Remove connection from both users
     await deleteDoc(connectionRef);
     const reciprocalId = `${userId}_${connection.userId}`;
-    await deleteDoc(doc(db, `users/${connection.userId}/connections`, reciprocalId));
+    await deleteDoc(doc(await getDb(), `users/${connection.userId}/connections`, reciprocalId));
 
     await showSuccess('Connection Removed', 'The connection has been removed from your network');
   } catch (error) {
@@ -134,6 +138,7 @@ export async function removeConnection(userId: string, connectionId: string): Pr
 // Check if users are connected
 export async function checkConnectionStatus(userId: string, otherUserId: string): Promise<'none' | 'pending' | 'accepted'> {
   try {
+    const db = await getDb();
     const connectionRef = doc(db, `users/${userId}/connections`, `${otherUserId}_${userId}`);
     const connectionDoc = await getDoc(connectionRef);
 

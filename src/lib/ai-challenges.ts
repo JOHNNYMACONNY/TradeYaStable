@@ -93,7 +93,7 @@ import {
   getDocs,
   addDoc
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { getDb } from './firebase';
 import { showError } from './alerts';
 
 // Initialize Hugging Face client
@@ -102,6 +102,7 @@ const API_KEY = import.meta.env.VITE_HUGGINGFACE_API_KEY;
 // Get popular skills from user profiles
 async function getPopularSkills(): Promise<string[]> {
   try {
+    const db = await getDb();
     const usersRef = collection(db, 'users');
     const snapshot = await getDocs(usersRef);
     
@@ -262,6 +263,7 @@ export async function generateChallenge(type: 'weekly' | 'monthly', useAI = fals
     const variation = await generateVariation(type, Math.floor(Math.random() * 100));
     
     // Create the challenge in Firestore
+    const db = await getDb();
     const docRef = await addDoc(collection(db, 'challenges'), {
       ...variation,
       type,
@@ -297,11 +299,12 @@ async function deleteAllChallenges(): Promise<void> {
   
   try {
     const challengesQuery = query(
-      collection(db, 'challenges'),
+      collection(await getDb(), 'challenges'),
       where('status', 'in', ['pending', 'live'])
     );
     
     const snapshot = await getDocs(challengesQuery);
+    const db = await getDb();
     const batch = writeBatch(db);
     
     snapshot.docs.forEach(doc => {

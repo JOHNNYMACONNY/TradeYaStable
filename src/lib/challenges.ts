@@ -1,6 +1,6 @@
 import { Challenge, Quest, UserProfile } from '../types';
 import { doc, collection, addDoc, updateDoc, increment, arrayUnion, Timestamp, query, where, getDocs } from 'firebase/firestore';
-import { db } from './firebase';
+import { getDb } from './firebase';
 import { awardExperience, awardBadge } from './reputation';
 
 // Challenge Templates
@@ -95,7 +95,7 @@ export async function createWeeklyChallenge() {
   const now = new Date();
   const endDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 1 week from now
 
-  await addDoc(collection(db, 'challenges'), {
+  await addDoc(collection(await getDb(), 'challenges'), {
     ...template,
     startDate: now,
     endDate,
@@ -110,7 +110,7 @@ export async function createMonthlyChallenge() {
   const now = new Date();
   const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 1); // End of current month
 
-  await addDoc(collection(db, 'challenges'), {
+  await addDoc(collection(await getDb(), 'challenges'), {
     ...template,
     startDate: now,
     endDate,
@@ -124,6 +124,7 @@ export async function startQuestChain(userId: string, questTemplate: typeof QUES
   const now = new Date();
   const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days to complete
 
+  const db = await getDb();
   const questRef = await addDoc(collection(db, 'quests'), {
     ...questTemplate,
     userId,
@@ -132,7 +133,7 @@ export async function startQuestChain(userId: string, questTemplate: typeof QUES
   });
 
   // Add quest to user's active quests
-  await updateDoc(doc(db, 'users', userId), {
+  await updateDoc(doc(await getDb(), 'users', userId), {
     activeQuests: arrayUnion(questRef.id)
   });
 
@@ -141,13 +142,14 @@ export async function startQuestChain(userId: string, questTemplate: typeof QUES
 
 // Join a challenge
 export async function joinChallenge(userId: string, challengeId: string) {
+  const db = await getDb();
   const challengeRef = doc(db, 'challenges', challengeId);
   await updateDoc(challengeRef, {
     participants: arrayUnion(userId)
   });
 
   // Initialize challenge progress for user
-  await updateDoc(doc(db, 'users', userId), {
+  await updateDoc(doc(await getDb(), 'users', userId), {
     [`challengeProgress.${challengeId}`]: {
       progress: 0,
       completed: false,
@@ -162,19 +164,20 @@ export async function updateChallengeProgress(
   challengeId: string,
   progress: number
 ) {
-  await updateDoc(doc(db, 'users', userId), {
+  await updateDoc(doc(await getDb(), 'users', userId), {
     [`challengeProgress.${challengeId}.progress`]: progress
   });
 }
 
 // Complete a challenge
 export async function completeChallenge(userId: string, challengeId: string) {
+  const db = await getDb();
   const challengeRef = doc(db, 'challenges', challengeId);
   await updateDoc(challengeRef, {
     completions: arrayUnion(userId)
   });
 
-  await updateDoc(doc(db, 'users', userId), {
+  await updateDoc(doc(await getDb(), 'users', userId), {
     [`challengeProgress.${challengeId}.completed`]: true
   });
 }
@@ -190,7 +193,7 @@ export async function claimChallengeRewards(userId: string, challenge: Challenge
   }
 
   // Mark rewards as claimed
-  await updateDoc(doc(db, 'users', userId), {
+  await updateDoc(doc(await getDb(), 'users', userId), {
     [`challengeProgress.${challenge.id}.claimedRewards`]: true
   });
 }
@@ -201,6 +204,7 @@ export async function updateQuestProgress(
   questId: string,
   stepId: string
 ) {
+  const db = await getDb();
   const questRef = doc(db, 'quests', questId);
   await updateDoc(questRef, {
     'steps.$[step].completed': true
@@ -210,7 +214,7 @@ export async function updateQuestProgress(
 
   // Check if all steps are completed
   const questDoc = await getDocs(query(
-    collection(db, 'quests'),
+    collection(await getDb(), 'quests'),
     where('id', '==', questId)
   ));
 
@@ -223,12 +227,12 @@ export async function updateQuestProgress(
 // Complete a quest
 async function completeQuest(userId: string, questId: string, quest: Quest) {
   // Update quest completion
-  await updateDoc(doc(db, 'quests', questId), {
+  await updateDoc(doc(await getDb(), 'quests', questId), {
     completedAt: new Date()
   });
 
   // Update user profile
-  await updateDoc(doc(db, 'users', userId), {
+  await updateDoc(doc(await getDb(), 'users', userId), {
     activeQuests: arrayUnion(questId),
     completedQuests: arrayUnion(questId)
   });

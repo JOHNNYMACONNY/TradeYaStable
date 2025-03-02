@@ -12,7 +12,7 @@ import {
   serverTimestamp,
   increment
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { getDb } from './firebase';
 import type { 
   TradeRequest, 
   ProjectPositionRequest, 
@@ -46,6 +46,7 @@ export async function createTradeRequest(
     }
 
     // Check if request already exists
+    const db = await getDb();
     const existingRequest = await getDocs(
       query(
         collection(db, 'tradeRequests'),
@@ -73,7 +74,7 @@ export async function createTradeRequest(
       notificationSent: false
     };
 
-    const requestRef = await addDoc(collection(db, 'tradeRequests'), request);
+    const requestRef = await addDoc(collection(await getDb(), 'tradeRequests'), request);
     await createRequestNotification(recipientId, requestRef.id, 'trade_request');
     
     // Create a trade-specific conversation
@@ -114,6 +115,7 @@ export async function createProjectRequest(
     }
 
     // Check if request already exists
+    const db = await getDb();
     const existingRequest = await getDocs(
       query(
         collection(db, 'projectRequests'),
@@ -154,7 +156,7 @@ export async function createProjectRequest(
       notificationSent: false
     };
 
-    const requestRef = await addDoc(collection(db, 'projectRequests'), request);
+    const requestRef = await addDoc(collection(await getDb(), 'projectRequests'), request);
     await createRequestNotification(recipientId, requestRef.id, 'project_request');
     
     // Create a project-specific conversation
@@ -177,6 +179,7 @@ export async function updateRequestStatus(
   userId: string // Add userId parameter for validation
 ): Promise<void> {
   try {
+    const db = await getDb();
     const requestRef = doc(db, collectionName, requestId);
     const request = await getDoc(requestRef);
     
@@ -225,7 +228,7 @@ async function createRequestNotification(
       createdAt: Timestamp.now()
     };
 
-    await addDoc(collection(db, 'requestNotifications'), notification);
+    await addDoc(collection(await getDb(), 'requestNotifications'), notification);
   } catch (error) {
     console.error('Error creating request notification:', error);
     throw error;
@@ -240,6 +243,7 @@ export async function getUserRequests(
   collectionName: 'tradeRequests' | 'projectRequests'
 ) {
   try {
+    const db = await getDb();
     const requestsRef = collection(db, collectionName);
     const q = query(
       requestsRef,
@@ -261,6 +265,7 @@ export async function getUserRequests(
     // Fetch sender data and add it to the request object
     const received = await Promise.all(receivedSnap.docs.map(async (doc) => {
       const requestData = doc.data();
+      const db = await getDb();
       const senderRef = doc(db, 'users', requestData.senderId);
       const senderSnap = await getDoc(senderRef);
       const senderData = senderSnap.exists() ? { id: senderSnap.id, ...senderSnap.data() } : null;
@@ -270,6 +275,7 @@ export async function getUserRequests(
 
     const sent = await Promise.all(sentSnap.docs.map(async (doc) => {
       const requestData = doc.data();
+      const db = await getDb();
       const senderRef = doc(db, 'users', requestData.senderId);
       const senderSnap = await getDoc(senderRef);
       const senderData = senderSnap.exists() ? { id: senderSnap.id, ...senderSnap.data() } : null;
@@ -295,6 +301,7 @@ export async function markRequestViewed(
   collectionName: 'tradeRequests' | 'projectRequests'
 ): Promise<void> {
   try {
+    const db = await getDb();
     const requestRef = doc(db, collectionName, requestId);
     await updateDoc(requestRef, {
       viewedAt: serverTimestamp()
@@ -310,6 +317,7 @@ export async function markRequestViewed(
  */
 export async function markNotificationRead(notificationId: string): Promise<void> {
   try {
+    const db = await getDb();
     const notificationRef = doc(db, 'requestNotifications', notificationId);
     await updateDoc(notificationRef, {
       read: true
