@@ -13,51 +13,12 @@ export default defineConfig({
     }
   },
   build: {
+    target: 'es2020',
     outDir: 'dist',
-    sourcemap: true,
-    target: 'esnext',
-    minify: 'esbuild',
-    modulePreload: false,
-    cssCodeSplit: true,
-    chunkSizeWarningLimit: 1000,
-    rollupOptions: {
-      onwarn(warning, warn) {
-        if (warning.code === 'CIRCULAR_DEPENDENCY') return;
-        warn(warning);
-      },
-      output: {
-        manualChunks: undefined
-      }
-    }
-  },
-  optimizeDeps: {
-    include: ['react', 'react-dom'],
-    exclude: ['path']
-  },
-  ssr: {
-    noExternal: true
+    sourcemap: true
   },
   server: {
     port: 5173,
-    host: true,
-    strictPort: true,
-    cors: {
-      origin: process.env.ALLOWED_ORIGINS?.split(',') || true,
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-      credentials: true
-    },
-    proxy: {
-      '/api': {
-        target: process.env.API_URL,
-        changeOrigin: true,
-        secure: process.env.NODE_ENV === 'production'
-      }
-    }
-  },
-  preview: {
-    port: 4173,
-    host: true,
-    strictPort: true
-  },
-  base: '/'
+    host: true
+  }
 });
