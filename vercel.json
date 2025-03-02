@@ -3,7 +3,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
-  "installCommand": "npm ci",
+  "installCommand": "npm cache clean --force && npm ci",
   "headers": [
     {
       "source": "/(.*)",
@@ -26,5 +26,8 @@
     "env": {
       "NODE_OPTIONS": "--max_old_space_size=4096"
     }
+  },
+  "engines": {
+    "node": "18.x"
   }
 }
