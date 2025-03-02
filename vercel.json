@@ -24,7 +24,7 @@
   },
   "build": {
     "env": {
-      "NODE_OPTIONS": "--max_old_space_size=4096 --experimental-modules"
+      "NODE_OPTIONS": "--max_old_space_size=4096"
     }
   }
 }

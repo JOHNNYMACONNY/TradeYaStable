@@ -15,7 +15,7 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
-    target: 'es2020',
+    target: 'esnext',
     minify: 'esbuild',
     modulePreload: false,
     cssCodeSplit: true,
@@ -24,8 +24,18 @@ export default defineConfig({
       onwarn(warning, warn) {
         if (warning.code === 'CIRCULAR_DEPENDENCY') return;
         warn(warning);
+      },
+      output: {
+        manualChunks: undefined
       }
     }
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom'],
+    exclude: ['path']
+  },
+  ssr: {
+    noExternal: true
   },
   server: {
     port: 5173,
