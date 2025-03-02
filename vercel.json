@@ -1,9 +1,9 @@
 {
   "version": 2,
+  "framework": "vite",
+  "installCommand": "npm install",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "framework": "vite",
-  "installCommand": "npm cache clean --force && npm ci",
   "headers": [
     {
       "source": "/(.*)",
@@ -24,10 +24,7 @@
   },
   "build": {
     "env": {
-      "NODE_OPTIONS": "--max_old_space_size=4096"
+      "NODE_OPTIONS": "--max_old_space_size=4096 --experimental-modules"
     }
-  },
-  "engines": {
-    "node": "18.x"
   }
 }
