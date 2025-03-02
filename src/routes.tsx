@@ -1,10 +1,10 @@
 import { Routes, Route } from 'react-router-dom';
-import { Profile } from './pages/profile';
+import { Profile } from './pages/Profile';
 import { BannerPreview } from './pages/BannerPreview';
-import { Messages } from './pages/messages';
-import { Discover } from './pages/discover';
-import { CreateProject } from './pages/createproject';
-import { CreateTrade } from './pages/createtrade';
+import { Messages } from './pages/Messages';
+import { Discover } from './pages/Discover';
+import { CreateProject } from './pages/CreateProject';
+import { CreateTrade } from './pages/CreateTrade';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 export function AppRoutes() {
