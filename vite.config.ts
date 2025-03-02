@@ -7,7 +7,6 @@ import { resolve } from 'path';
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    preserveSymlinks: true,
     alias: [
       { find: '@', replacement: resolve(__dirname, './src') },
       { find: '@hooks', replacement: resolve(__dirname, './src/hooks') },
@@ -31,33 +30,21 @@ export default defineConfig({
     minify: 'esbuild',
     modulePreload: false,
     rollupOptions: {
-      output: {
-        manualChunks: (id) => {
-          if (id.includes('node_modules')) {
-            if (id.includes('react')) return 'react';
-            if (id.includes('firebase')) return 'firebase';
-            return 'vendor';
-          }
-        }
-      },
       onwarn(warning, warn) {
         if (warning.code === 'CIRCULAR_DEPENDENCY') return;
         warn(warning);
       }
     }
   },
-  // Development server config
   server: {
     port: 5173,
     host: true,
     strictPort: true,
-    // Add proper CORS headers
     cors: {
       origin: process.env.ALLOWED_ORIGINS?.split(',') || true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
       credentials: true
     },
-    // Add proxy configuration for API calls
     proxy: {
       '/api': {
         target: process.env.API_URL,
@@ -69,12 +56,10 @@ export default defineConfig({
       usePolling: true
     }
   },
-  // Preview server config
   preview: {
     port: 4173,
     host: true,
     strictPort: true
   },
-  // Base URL configuration
   base: '/'
 });
