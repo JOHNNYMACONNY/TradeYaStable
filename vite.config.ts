@@ -1,34 +1,25 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import tailwindcss from 'tailwindcss';
-import autoprefixer from 'autoprefixer';
 import { resolve } from 'path';
 
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: [
-      { find: '@', replacement: resolve(__dirname, './src') },
-      { find: '@hooks', replacement: resolve(__dirname, './src/hooks') },
-      { find: '@components', replacement: resolve(__dirname, './src/components') },
-      { find: '@utils', replacement: resolve(__dirname, './src/utils') }
-    ],
-    extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json']
-  },
-  css: {
-    devSourcemap: true,
-  },
-  optimizeDeps: {
-    include: ['@hooks/useFirestore'],
-    exclude: ['lucide-react'],
+    alias: {
+      '@': resolve(__dirname, './src'),
+      '@hooks': resolve(__dirname, './src/hooks'),
+      '@components': resolve(__dirname, './src/components'),
+      '@utils': resolve(__dirname, './src/utils')
+    }
   },
   build: {
     outDir: 'dist',
-    assetsDir: 'assets',
     sourcemap: true,
-    target: ['es2020', 'edge88', 'firefox78', 'chrome87', 'safari14'],
+    target: 'es2020',
     minify: 'esbuild',
     modulePreload: false,
+    cssCodeSplit: true,
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       onwarn(warning, warn) {
         if (warning.code === 'CIRCULAR_DEPENDENCY') return;
@@ -51,9 +42,6 @@ export default defineConfig({
         changeOrigin: true,
         secure: process.env.NODE_ENV === 'production'
       }
-    },
-    watch: {
-      usePolling: true
     }
   },
   preview: {
