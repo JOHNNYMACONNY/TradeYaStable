@@ -7,6 +7,7 @@ import { resolve } from 'path';
 export default defineConfig({
   plugins: [react()],
   resolve: {
+    preserveSymlinks: true,
     alias: [
       { find: '@', replacement: resolve(__dirname, './src') },
       { find: '@hooks', replacement: resolve(__dirname, './src/hooks') },
@@ -26,8 +27,11 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: true,
-    target: 'esnext',
+    target: 'es2020',
     minify: 'esbuild',
+    modulePreload: {
+      polyfill: true
+    },
     // Optimize chunks
     rollupOptions: {
       output: {
