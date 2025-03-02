@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { getDb } from '../lib/firebase';
 import type { UserProfile } from '../types';
 import { Pencil, X, Check, Plus, ThumbsUp, User, Link as LinkIcon, Shield, Palette } from 'lucide-react';
 import { ReputationCard } from '../components/ReputationCard';
@@ -33,6 +33,7 @@ export function Profile() {
       if (!user) return;
       
       try {
+        const db = await getDb();
         const docRef = doc(db, 'users', user.uid);
         const docSnap = await getDoc(docRef);
         
@@ -53,10 +54,10 @@ export function Profile() {
           // Ensure level is set in database
           if (typeof profileData.level !== 'number') {
             console.log('Initializing user level to 0');
-            updateDoc(docRef, {
+            await updateDoc(docRef, {
               level: 0,
               updatedAt: new Date()
-            }).catch(console.error);
+            });
           }
         }
       } catch (err) {
@@ -92,10 +93,13 @@ export function Profile() {
 
     // Ensure profile has a level property initialized
     if (typeof profile.level !== 'number') {
-      updateDoc(doc(db, 'users', profile.id), {
-        level: 0,
-        updatedAt: new Date()
-      }).catch(console.error);
+      (async () => {
+        const db = await getDb();
+        await updateDoc(doc(db, 'users', profile.id), {
+          level: 0,
+          updatedAt: new Date()
+        });
+      })().catch(console.error);
     }
   }, [profile?.level, profile?.selectedBanner]);
 
@@ -133,6 +137,7 @@ export function Profile() {
     if (!user || !profile) return;
     
     try {
+      const db = await getDb();
       await updateDoc(doc(db, 'users', user.uid), {
         profilePicture: url,
         updatedAt: new Date()
@@ -160,6 +165,7 @@ export function Profile() {
       }
 
       // Update other profile fields
+      const db = await getDb();
       const docRef = doc(db, 'users', user.uid);
       const updates = { ...editedProfile };
       delete updates.username; // Username is handled separately
@@ -292,6 +298,7 @@ export function Profile() {
             onUpdate={async (bannerId) => {
               setIsCustomizingBanner(false);
               try {
+                const db = await getDb();
                 await updateDoc(doc(db, 'users', user!.uid), {
                   selectedBanner: bannerId,
                   updatedAt: new Date()

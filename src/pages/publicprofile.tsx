@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { getDb } from '../lib/firebase';
 import { UserProfile, Trade } from '../types';
 import { ReputationCard } from '../components/ReputationCard';
 import { ProfilePicture } from '../components/ProfilePicture';
@@ -24,6 +24,7 @@ export function PublicProfile() {
       if (!id) return;
 
       try {
+        const db = await getDb();
         // Fetch public profile data
         const profileDoc = await getDoc(doc(db, 'users', id));
         if (!profileDoc.exists()) {

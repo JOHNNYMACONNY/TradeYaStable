@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useFirestore } from '../hooks';
-import { collection, query, where, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { where, orderBy, doc, getDoc, QueryConstraint } from 'firebase/firestore';
+import { getDb, withRetry } from '../lib/firebase';
 import { MessageSquare, User, ArrowRight, Check, CheckCheck } from 'lucide-react';
 import type { Conversation, UserProfile } from '../types/messaging';
 import { ProfilePicture } from '../components/ProfilePicture';
@@ -12,63 +12,85 @@ export function Messages() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
-  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [participants, setParticipants] = useState<{ [key: string]: UserProfile }>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Use the useFirestore hook for conversations
+  const queryConstraints: QueryConstraint[] = user ? [
+    where('participants', 'array-contains', user.uid),
+    orderBy('updatedAt', 'desc')
+  ] : [];
+  
+  const { data: conversations, loading: conversationsLoading, error: conversationsError } = 
+    useFirestore<Conversation>('conversations', queryConstraints);
+
   useEffect(() => {
-    if (!user) return;
-
-    // Query using participants array
-    const q = query(
-      collection(db, 'conversations'),
-      where('participants', 'array-contains', user.uid),
-      orderBy('updatedAt', 'desc')
-    );
-
-    const unsubscribe = onSnapshot(q, async (snapshot) => {
-      try {
-        const conversationsData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Conversation[];
-        // Sort conversations by updatedAt locally
-        const sortedConversations = [...conversationsData].sort((a, b) => {
-          const timeA = a.updatedAt?.toMillis() || 0;
-          const timeB = b.updatedAt?.toMillis() || 0;
-          return timeB - timeA;
-        });
-        setConversations(sortedConversations);
-
-        const participantIds = new Set(
-          conversationsData.flatMap(conv => conv.participants.filter(id => id !== user.uid))
-        );
-        const participantsData: { [key: string]: UserProfile } = {};
-        
-        for (const participantId of participantIds) {
-          if (participantId !== user.uid) {
-            const userDocRef = doc(db, 'users', participantId);
-            const userDoc = await getDoc(userDocRef);
-            if (userDoc.exists()) {
-              participantsData[participantId] = {
-                id: userDoc.id,
-                ...userDoc.data()
-              } as UserProfile;
-            }
-          }
-        }
-        
-        setParticipants(participantsData);
-        setLoading(false);
-      } catch (err) {
-        setError('Failed to load conversations');
-        setLoading(false);
-      }
+    // Log state changes for debugging
+    console.debug('Messages component state:', {
+      hasUser: !!user,
+      conversationsLoading,
+      conversationsCount: conversations?.length,
+      error: conversationsError?.message
     });
 
-    return () => unsubscribe();
-  }, [user]);
+    if (!user) {
+      console.warn('No authenticated user found');
+      return;
+    }
+
+    if (!conversations?.length && !conversationsLoading) {
+      console.debug('No conversations found');
+      return;
+    }
+
+    const loadParticipants = async () => {
+      try {
+        console.debug('Starting to load participants...');
+        const db = await getDb();
+        const participantIds = new Set(
+          conversations.flatMap(conv => conv.participants.filter(id => id !== user.uid))
+        );
+        console.debug(`Found ${participantIds.size} unique participants to load`);
+        
+        const participantsData: { [key: string]: UserProfile } = {};
+        
+        await withRetry(async () => {
+          for (const participantId of participantIds) {
+            if (participantId !== user.uid) {
+              const userDocRef = doc(db, 'users', participantId);
+              const userDoc = await getDoc(userDocRef);
+              if (userDoc.exists()) {
+                participantsData[participantId] = {
+                  id: userDoc.id,
+                  ...userDoc.data()
+                } as UserProfile;
+              } else {
+                console.warn(`User document not found for ID: ${participantId}`);
+              }
+            }
+          }
+          console.debug(`Successfully loaded ${Object.keys(participantsData).length} participants`);
+          setParticipants(participantsData);
+        }, 3, 1000, (attempt, error) => {
+          console.warn(`Retry attempt ${attempt} for loading participants:`, error);
+        });
+        
+        setLoading(false);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+        console.error('Failed to load participants:', {
+          error: err,
+          message: errorMessage,
+          timestamp: new Date().toISOString()
+        });
+        setError(`Failed to load conversation participants: ${errorMessage}`);
+        setLoading(false);
+      }
+    };
+
+    loadParticipants();
+  }, [user, conversations]);
 
   const getOtherParticipant = (conversation: Conversation) => {
     const otherUserId = conversation.participants.find(id => id !== user?.uid);

@@ -7,7 +7,7 @@ import { BannerGradient } from '../components/BannerGradient';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { getDb } from '../lib/firebase';
 
 export function BannerPreview() {
   const { bannerId } = useParams<{ bannerId: string }>();
@@ -68,6 +68,7 @@ export function BannerPreview() {
     
     setLoading(true);
     try {
+      const db = await getDb();
       await updateDoc(doc(db, 'users', user.uid), {
         selectedBanner: banner.id,
         updatedAt: new Date()

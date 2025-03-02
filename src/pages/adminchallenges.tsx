@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { getDb } from '../lib/firebase';
+import { getFunctions } from 'firebase/functions';
 import { Challenge } from '../types';
 import { ChallengeEditor } from '../components/ChallengeEditor';
 import { Clock, Edit, Play, AlertTriangle } from 'lucide-react';
@@ -12,30 +13,46 @@ export function AdminChallenges() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let unsubscribe: () => void;
+
     // Subscribe to pending challenges
-    const q = query(
-      collection(db, 'challenges'),
-      where('status', '==', 'pending'),
-      orderBy('createdAt', 'desc')
-    );
+    const initializeQuery = async () => {
+      const db = await getDb();
+      const q = query(
+        collection(db, 'challenges'),
+        where('status', '==', 'pending'),
+        orderBy('createdAt', 'desc')
+      );
 
-    const unsubscribe = onSnapshot(q, 
-      (snapshot) => {
-        const challenges = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Challenge[];
-        setPendingChallenges(challenges);
-        setLoading(false);
-      },
-      (err) => {
-        console.error('Error fetching challenges:', err);
-        setError('Failed to load challenges');
-        setLoading(false);
+      unsubscribe = onSnapshot(
+        q, 
+        (snapshot) => {
+          const challenges = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          })) as Challenge[];
+          setPendingChallenges(challenges);
+          setLoading(false);
+        },
+        (err) => {
+          console.error('Error fetching challenges:', err);
+          setError('Failed to load challenges');
+          setLoading(false);
+        }
+      );
+    };
+
+    initializeQuery().catch(err => {
+      console.error('Failed to initialize query:', err);
+      setError('Failed to load challenges');
+      setLoading(false);
+    });
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
       }
-    );
-
-    return () => unsubscribe();
+    };
   }, []);
 
   const handleActivate = async (challengeId: string) => {

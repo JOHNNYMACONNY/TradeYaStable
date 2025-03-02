@@ -13,7 +13,7 @@ import {
   getDoc,
   Timestamp
 } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { getDb } from '../lib/firebase';
 import { ArrowLeft, Send, User } from 'lucide-react';
 import type { Conversation, Message, UserProfile, MessageType, MessageStatus } from '../types/messaging';
 
@@ -34,132 +34,150 @@ export function Conversation() {
   useEffect(() => {
     if (!id || !user) return;
 
+    let unsubConversation: (() => void) | undefined;
+
     // Subscribe to conversation updates
-    try {
-      const unsubConversation = onSnapshot(
-        doc(db, 'conversations', id),
-        async (snapshot) => {
-          if (!snapshot.exists()) {
-            console.error('Conversation not found:', id);
-            setError('Conversation not found');
-            setLoading(false);
-            return;
-          }
-
-          console.log('Conversation data received:', snapshot.data()); // Debug log
-
-          const conversationData = {
-            id: snapshot.id,
-            ...snapshot.data()
-          } as Conversation;
-          setConversation(conversationData);
-
-          // Fetch other participant's profile
-          const otherUserId = conversationData.participants.find(
-            (pid) => pid !== user.uid
-          );
-          if (otherUserId) {
-            try {
-              const userDoc = await getDoc(doc(db, 'users', otherUserId));
-              if (userDoc.exists()) {
-                setOtherUser({
-                  id: userDoc.id,
-                  ...userDoc.data()
-                } as UserProfile);
-              } else {
-                console.error('User profile not found:', otherUserId);
-                setError('User profile not found');
-              }
-            } catch (err) {
-              console.error('Failed to fetch other user:', err);
-              setError('Failed to load user profile');
+    const initializeConversation = async () => {
+      try {
+        const db = await getDb();
+        unsubConversation = onSnapshot(
+          doc(db, 'conversations', id),
+          async (snapshot) => {
+            if (!snapshot.exists()) {
+              console.error('Conversation not found:', id);
+              setError('Conversation not found');
+              setLoading(false);
+              return;
             }
-          }
-          setLoading(false);
-        },
-        (error) => {
-          console.error('Error fetching conversation:', error);
-          setError('Failed to load conversation');
-          setLoading(false);
-        }
-      );
-      
-      // Set up cleanup function
-      return () => {
-        unsubConversation();
-        setConversation(null);
-        setMessages([]);
-        setOtherUser(null);
-      };
-    } catch (err) {
-      console.error('Error setting up conversation listener:', err);
-      setError('Failed to load conversation');
-      setLoading(false);
-    }
 
+            console.log('Conversation data received:', snapshot.data()); // Debug log
+
+            const conversationData = {
+              id: snapshot.id,
+              ...snapshot.data()
+            } as Conversation;
+            setConversation(conversationData);
+
+            // Fetch other participant's profile
+            const otherUserId = conversationData.participants.find(
+              (pid) => pid !== user.uid
+            );
+            if (otherUserId) {
+              try {
+                const userDoc = await getDoc(doc(db, 'users', otherUserId));
+                if (userDoc.exists()) {
+                  setOtherUser({
+                    id: userDoc.id,
+                    ...userDoc.data()
+                  } as UserProfile);
+                } else {
+                  console.error('User profile not found:', otherUserId);
+                  setError('User profile not found');
+                }
+              } catch (err) {
+                console.error('Failed to fetch other user:', err);
+                setError('Failed to load user profile');
+              }
+            }
+            setLoading(false);
+          },
+          (error) => {
+            console.error('Error fetching conversation:', error);
+            setError('Failed to load conversation');
+            setLoading(false);
+          }
+        );
+      } catch (err) {
+        console.error('Error setting up conversation listener:', err);
+        setError('Failed to load conversation');
+        setLoading(false);
+      }
+    };
+
+    initializeConversation();
+      
+    // Set up cleanup function
+    return () => {
+      if (unsubConversation) {
+        unsubConversation();
+      }
+      setConversation(null);
+      setMessages([]);
+      setOtherUser(null);
+    };
   }, [id, user]);
 
   // Separate effect for messages subscription
   useEffect(() => {
     if (!id || !user) return;
 
+    let unsubMessages: (() => void) | undefined;
+
     console.log('Setting up messages listener for conversation:', id); // Debug log
 
-    const messagesRef = collection(db, 'conversations', id, 'messages');
-    const q = query(messagesRef, orderBy('createdAt', 'asc'));
+    const initializeMessages = async () => {
+      const db = await getDb();
+      const messagesRef = collection(db, 'conversations', id, 'messages');
+      const q = query(messagesRef, orderBy('createdAt', 'asc'));
 
-    const unsubMessages = onSnapshot(
-      q,
-      (snapshot) => {
-        const newMessages = snapshot.docs.map((docSnapshot) => {
-          const data = docSnapshot.data();
-          return {
-            id: docSnapshot.id,
-            conversationId: id,
-            senderId: data.senderId,
-            content: data.content,
-            createdAt: data.createdAt ? (data.createdAt as Timestamp) : null,
-            read: data.read || false,
-            type: (data.type || 'text') as MessageType,
-            status: (data.status || 'sent') as MessageStatus
-          };
-        });
-        setMessages(newMessages);
-        setLoading(false);
+      unsubMessages = onSnapshot(
+        q,
+        (snapshot) => {
+          const newMessages = snapshot.docs.map((docSnapshot) => {
+            const data = docSnapshot.data();
+            return {
+              id: docSnapshot.id,
+              conversationId: id,
+              senderId: data.senderId,
+              content: data.content,
+              createdAt: data.createdAt ? (data.createdAt as Timestamp) : null,
+              read: data.read || false,
+              type: (data.type || 'text') as MessageType,
+              status: (data.status || 'sent') as MessageStatus
+            };
+          });
+          setMessages(newMessages);
+          setLoading(false);
 
-        // Update read status
-        if (newMessages.length > 0) {
-          const unreadMessages = newMessages.filter(
-            (msg) => !msg.read && msg.senderId !== user.uid
-          );
+          // Update read status
+          if (newMessages.length > 0) {
+            const unreadMessages = newMessages.filter(
+              (msg) => !msg.read && msg.senderId !== user.uid
+            );
 
-          if (unreadMessages.length > 0) {
-            updateDoc(doc(db, 'conversations', id), {
-              [`unreadCount.${user.uid}`]: 0,
-              lastRead: serverTimestamp()
-            }).catch((err) => {
-              console.error('Error updating read status:', err);
-            });
+            if (unreadMessages.length > 0) {
+              (async () => {
+                const db = await getDb();
+                await updateDoc(doc(db, 'conversations', id), {
+                  [`unreadCount.${user.uid}`]: 0,
+                  lastRead: serverTimestamp()
+                });
 
-            // Mark messages as read
-            unreadMessages.forEach((msg) => {
-              const messageRef = doc(messagesRef, msg.id);
-              updateDoc(messageRef, { read: true }).catch((err) => {
-                console.error('Error marking message as read:', err);
+                // Mark messages as read
+                for (const msg of unreadMessages) {
+                  const messageRef = doc(messagesRef, msg.id);
+                  await updateDoc(messageRef, { read: true });
+                }
+              })().catch((err) => {
+                console.error('Error updating read status:', err);
               });
-            });
+            }
           }
+        },
+        (error) => {
+          console.error('Error fetching messages:', error);
+          setError('Failed to load messages');
+          setLoading(false);
         }
-      },
-      (error) => {
-        console.error('Error fetching messages:', error);
-        setError('Failed to load messages');
-        setLoading(false);
-      }
-    );
+      );
+    };
+
+    initializeMessages();
 
     return () => {
-      unsubMessages();
+      if (unsubMessages) {
+        unsubMessages();
+      }
     };
   }, [id, user]);
 
@@ -172,6 +190,7 @@ export function Conversation() {
   const updateTypingStatus = async (isTyping: boolean) => {
     if (!conversation?.id || !user?.uid) return;
     
+    const db = await getDb();
     const conversationRef = doc(db, 'conversations', conversation.id);
     try {
       const typingUpdate = {
@@ -215,18 +234,27 @@ export function Conversation() {
   useEffect(() => {
     if (!user?.uid) return;
 
-    const userStatusRef = doc(db, 'users', user.uid);
-    updateDoc(userStatusRef, {
-      isOnline: true,
-      lastSeen: serverTimestamp()
-    });
+    const updateOnlineStatus = async () => {
+      const db = await getDb();
+      const userStatusRef = doc(db, 'users', user.uid);
+      await updateDoc(userStatusRef, {
+        isOnline: true,
+        lastSeen: serverTimestamp()
+      });
+    };
+
+    updateOnlineStatus();
 
     return () => {
       if (user?.uid) {
-        updateDoc(userStatusRef, {
-          isOnline: false,
-          lastSeen: serverTimestamp()
-        });
+        (async () => {
+          const db = await getDb();
+          const userStatusRef = doc(db, 'users', user.uid);
+          await updateDoc(userStatusRef, {
+            isOnline: false,
+            lastSeen: serverTimestamp()
+          });
+        })();
       }
     };
   }, [user]);
@@ -239,6 +267,7 @@ export function Conversation() {
     setNewMessage(''); // Clear input immediately for better UX
 
     try {
+      const db = await getDb();
       // First update conversation metadata to ensure proper ordering
       await updateDoc(doc(db, 'conversations', id), {
         lastMessage: tempMessage,
@@ -264,6 +293,7 @@ export function Conversation() {
       
       // Only attempt to revert conversation metadata if we managed to update it
       try {
+        const db = await getDb();
         await updateDoc(doc(db, 'conversations', id), {
           lastMessage: conversation.lastMessage,
           lastMessageTimestamp: conversation.lastMessageTimestamp,

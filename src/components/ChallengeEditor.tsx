@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Challenge } from '../types';
 import { generateChallenge } from '../lib/ai-challenges';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { getDb } from '../lib/firebase';
 import { Wand, Save, RotateCcw, AlertTriangle } from 'lucide-react';
 
 interface ChallengeEditorProps {
@@ -23,7 +23,8 @@ export function ChallengeEditor({ challenge, type, onSave, onCancel }: Challenge
     setError(null);
     try {
       const challengeId = await generateChallenge(type, true);
-      const challengeDoc = await db.doc(`challenges/${challengeId}`).get();
+      const db = await getDb();
+      const challengeDoc = await getDoc(doc(db, 'challenges', challengeId));
       setEditedChallenge(challengeDoc.data() as Challenge);
     } catch (err) {
       setError('Failed to generate challenge. Please try again or edit manually.');
@@ -42,6 +43,7 @@ export function ChallengeEditor({ challenge, type, onSave, onCancel }: Challenge
     setError(null);
     try {
       if (challenge?.id) {
+        const db = await getDb();
         await updateDoc(doc(db, 'challenges', challenge.id), {
           ...editedChallenge,
           updatedAt: new Date()

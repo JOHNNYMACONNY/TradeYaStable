@@ -12,7 +12,7 @@ import {
   getRedirectResult,
   updateProfile
 } from 'firebase/auth';
-import { auth, db as getDb, withRetry } from '../lib/firebase';
+import { auth, getDb, withRetry } from '../lib/firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 
 interface AuthContextType {
@@ -33,7 +33,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    console.debug('Setting up auth state listener');
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.debug('Auth state changed:', { 
+        isAuthenticated: !!user,
+        userId: user?.uid,
+        timestamp: new Date().toISOString()
+      });
+      
       setUser(user);
       setLoading(false);
 
@@ -42,10 +49,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           const result = await getRedirectResult(auth);
           if (result?.user) {
+            console.debug('Handling redirect sign-in result');
             await handleGoogleSignIn(result.user);
           }
         } catch (error: any) {
-          console.error('Redirect sign-in error:', error);
+          console.error('Redirect sign-in error:', {
+            code: error.code,
+            message: error.message,
+            timestamp: new Date().toISOString()
+          });
           if (error.code === 'auth/unauthorized-domain') {
             setError('This domain is not authorized for authentication. Please contact support.');
           }

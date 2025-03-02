@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Filter, Tag, Clock, User } from 'lucide-react';
 import { useFirestore } from '../hooks';
 import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { getDb } from '../lib/firebase';
 import type { Trade, UserProfile } from '../types';
 import { ProfilePicture } from '../components/ProfilePicture';
 import { ProfileHoverCard } from '../components/ProfileHoverCard';
@@ -18,24 +18,29 @@ export function Discover() {
   // Fetch creators' profiles
   useEffect(() => {
     const fetchCreators = async () => {
-      const creatorIds = new Set(trades.map(trade => trade.creatorId));
-      const creatorsData: { [key: string]: UserProfile } = {};
-      
-      for (const creatorId of creatorIds) {
-        try {
-          const creatorDoc = await getDoc(doc(db, 'users', creatorId));
-          if (creatorDoc.exists()) {
-            creatorsData[creatorId] = {
-              id: creatorDoc.id,
-              ...creatorDoc.data()
-            } as UserProfile;
+      try {
+        const database = await getDb(); // Get initialized db instance
+        const creatorIds = new Set(trades.map(trade => trade.creatorId));
+        const creatorsData: { [key: string]: UserProfile } = {};
+        
+        for (const creatorId of creatorIds) {
+          try {
+            const creatorDoc = await getDoc(doc(database, 'users', creatorId));
+            if (creatorDoc.exists()) {
+              creatorsData[creatorId] = {
+                id: creatorDoc.id,
+                ...creatorDoc.data()
+              } as UserProfile;
+            }
+          } catch (err) {
+            console.error('Error fetching creator:', err);
           }
-        } catch (err) {
-          console.error('Error fetching creator:', err);
         }
+        
+        setCreators(creatorsData);
+      } catch (err) {
+        console.error('Error initializing database:', err);
       }
-      
-      setCreators(creatorsData);
     };
 
     if (trades.length > 0) {

@@ -9,7 +9,7 @@ import {
   doc,
   getDoc
 } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { useFirestoreDb } from '../hooks/useFirestoreDb';
 import { startConversation } from '../lib/messaging';
 import { 
   acceptConnectionRequest, 
@@ -30,6 +30,7 @@ import {
 
 export function Connections() {
   const { user } = useAuth();
+  const { db, loading: dbLoading, error: dbError } = useFirestoreDb();
   const [connections, setConnections] = useState<Connection[]>([]);
   const [pendingRequests, setPendingRequests] = useState<Connection[]>([]);
   const [profiles, setProfiles] = useState<{ [key: string]: UserProfile }>({});
@@ -39,6 +40,7 @@ export function Connections() {
 
   // Fetch user profiles for connections
   const fetchProfiles = async (userIds: string[]) => {
+    if (!db) return;
     const uniqueIds = Array.from(new Set(userIds));
     const newProfiles: { [key: string]: UserProfile } = {};
     
@@ -61,7 +63,7 @@ export function Connections() {
 
   // Real-time updates for connections
   useEffect(() => {
-    if (!user) return;
+    if (!user || !db) return;
 
     // Query for pending requests
     const pendingQuery = query(
@@ -114,7 +116,7 @@ export function Connections() {
       unsubPending();
       unsubAccepted();
     };
-  }, [user]);
+  }, [user, db]);
 
   const handleAcceptRequest = async (connectionId: string) => {
     if (!user) return;
@@ -134,7 +136,7 @@ export function Connections() {
     }
   };
 
-  if (loading) {
+  if (loading || dbLoading) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="animate-pulse space-y-4">
@@ -166,9 +168,9 @@ export function Connections() {
         </p>
       </div>
 
-      {error && (
+      {(error || dbError) && (
         <div className="mb-8 bg-red-900/20 border border-red-500/50 text-red-500 p-4 rounded-lg">
-          {error}
+          {dbError?.message || error}
         </div>
       )}
 
@@ -288,7 +290,7 @@ export function Connections() {
                       Top Skills
                     </h4>
                     <div className="flex flex-wrap gap-2">
-                      {profile.skills.slice(0, 3).map((skill) => (
+                      {profile.skills?.slice(0, 3).map((skill) => (
                         <span
                           key={skill}
                           className="px-2 py-1 bg-accent-sage/20 text-gray-900 text-sm rounded-full border border-accent-sage/30"

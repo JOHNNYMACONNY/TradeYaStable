@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { doc, getDoc, updateDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { getDb, withRetry } from '../lib/firebase';
 import { Calendar, Users, CheckCircle2, AlertCircle, MessageSquare } from 'lucide-react';
 import { ProfilePicture } from '../components/ProfilePicture';
 import type { Collaboration, UserProfile } from '../types';
@@ -24,23 +24,25 @@ export function ProjectDetails() {
     async function fetchProjectAndCreator() {
       if (!id) return;
 
+      const firestore = await getDb();
       try {
-        const projectDoc = await getDoc(doc(db, 'collaborations', id));
-        if (!projectDoc.exists()) {
-          setError('Project not found');
-          return;
-        }
+        await withRetry(async () => {
+          const projectDoc = await getDoc(doc(firestore, 'collaborations', id));
+          if (!projectDoc.exists()) {
+            throw new Error('Project not found');
+          }
 
-        const projectData = { id: projectDoc.id, ...projectDoc.data() } as Collaboration;
-        setProject(projectData);
+          const projectData = { id: projectDoc.id, ...projectDoc.data() } as Collaboration;
+          setProject(projectData);
 
-        // Fetch creator details
-        const creatorDoc = await getDoc(doc(db, 'users', projectData.creatorId));
-        if (creatorDoc.exists()) {
-          const creatorData = { id: creatorDoc.id, ...creatorDoc.data() } as UserProfile;
-          console.log('Creator data:', creatorData);
-          setCreator(creatorData);
-        }
+          // Fetch creator details
+          const creatorDoc = await getDoc(doc(firestore, 'users', projectData.creatorId));
+          if (creatorDoc.exists()) {
+            const creatorData = { id: creatorDoc.id, ...creatorDoc.data() } as UserProfile;
+            console.log('Creator data:', creatorData);
+            setCreator(creatorData);
+          }
+        });
       } catch (err) {
         setError('Failed to load project details');
       } finally {
@@ -55,20 +57,23 @@ export function ProjectDetails() {
     if (!user || !project || joining) return;
 
     setJoining(true);
+    const firestore = await getDb();
     try {
-      const updatedRoles = [...project.roles];
-      updatedRoles[roleIndex] = {
-        ...updatedRoles[roleIndex],
-        filled: true,
-        userId: user.uid
-      };
+      await withRetry(async () => {
+        const updatedRoles = [...project.roles];
+        updatedRoles[roleIndex] = {
+          ...updatedRoles[roleIndex],
+          filled: true,
+          userId: user.uid
+        };
 
-      await updateDoc(doc(db, 'collaborations', project.id), {
-        roles: updatedRoles,
-        updatedAt: serverTimestamp()
+        await updateDoc(doc(firestore, 'collaborations', project.id), {
+          roles: updatedRoles,
+          updatedAt: serverTimestamp()
+        });
+
+        setProject(prev => prev ? { ...prev, roles: updatedRoles } : null);
       });
-
-      setProject(prev => prev ? { ...prev, roles: updatedRoles } : null);
     } catch (err) {
       setError('Failed to join role');
     } finally {
@@ -80,39 +85,42 @@ export function ProjectDetails() {
     if (!project || !user || updatingStatus) return;
 
     setUpdatingStatus(true);
+    const firestore = await getDb();
     try {
-      await updateDoc(doc(db, 'collaborations', project.id), {
-        status: newStatus,
-        updatedAt: serverTimestamp()
-      });
+      await withRetry(async () => {
+        await updateDoc(doc(firestore, 'collaborations', project.id), {
+          status: newStatus,
+          updatedAt: serverTimestamp()
+        });
 
-      // Award XP when project is completed
-      if (newStatus === 'completed') {
-        // Award XP to all participants
-        const participants = project.roles
-          .filter(role => role.filled && role.userId)
-          .map(role => ({
-            userId: role.userId!,
-            skills: role.skills
-          }));
+        // Award XP when project is completed
+        if (newStatus === 'completed') {
+          // Award XP to all participants
+          const participants = project.roles
+            .filter(role => role.filled && role.userId)
+            .map(role => ({
+              userId: role.userId!,
+              skills: role.skills
+            }));
 
-        for (const participant of participants) {
-          await awardExperience(
-            participant.userId,
-            XP_CONFIG.COLLABORATION_COMPLETION,
-            participant.skills
-          );
-          
-          // Check and award badges
-          const participantProfile = await getDoc(doc(db, 'users', participant.userId));
-          if (participantProfile.exists()) {
-            await checkAndAwardBadges(participant.userId, participantProfile.data() as UserProfile);
+          for (const participant of participants) {
+            await awardExperience(
+              participant.userId,
+              XP_CONFIG.COLLABORATION_COMPLETION,
+              participant.skills
+            );
+            
+            // Check and award badges
+            const participantProfile = await getDoc(doc(firestore, 'users', participant.userId));
+            if (participantProfile.exists()) {
+              await checkAndAwardBadges(participant.userId, participantProfile.data() as UserProfile);
+            }
           }
         }
-      }
 
-      setProject(prev => prev ? { ...prev, status: newStatus } : null);
-      setShowStatusModal(false);
+        setProject(prev => prev ? { ...prev, status: newStatus } : null);
+        setShowStatusModal(false);
+      });
     } catch (err) {
       setError('Failed to update project status');
     } finally {
@@ -123,22 +131,25 @@ export function ProjectDetails() {
   const handleContact = async () => {
     if (!user || !project || !creator) return;
     
+    const firestore = await getDb();
     try {
-      // Create or get conversation
-      const conversationRef = await addDoc(collection(db, 'conversations'), {
-        participants: [user.uid, project.creatorId],
-        projectId: id,
-        projectName: project.title,
-        lastMessage: '',
-        unreadCount: {
-          [project.creatorId]: 0,
-          [user.uid]: 0
-        },
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+      await withRetry(async () => {
+        // Create or get conversation
+        const conversationRef = await addDoc(collection(firestore, 'conversations'), {
+          participants: [user.uid, project.creatorId],
+          projectId: id,
+          projectName: project.title,
+          lastMessage: '',
+          unreadCount: {
+            [project.creatorId]: 0,
+            [user.uid]: 0
+          },
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+        
+        navigate(`/messages/${conversationRef.id}`);
       });
-      
-      navigate(`/messages/${conversationRef.id}`);
     } catch (err) {
       setError('Failed to start conversation');
     }

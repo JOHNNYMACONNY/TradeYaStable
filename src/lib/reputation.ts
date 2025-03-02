@@ -1,6 +1,6 @@
 import { Badge, UserProfile } from '../types';
 import { doc, updateDoc, increment, arrayUnion } from 'firebase/firestore';
-import { db } from './firebase';
+import { getDb } from './firebase';
 
 // Experience points configuration
 export const XP_CONFIG = {
@@ -67,6 +67,7 @@ export function calculateLevel(experience: number): number {
 
 // Award experience points
 export async function awardExperience(userId: string, amount: number, skills?: string[]) {
+  const db = await getDb();
   const userRef = doc(db, 'users', userId);
   
   await updateDoc(userRef, {
@@ -86,6 +87,7 @@ export async function awardExperience(userId: string, amount: number, skills?: s
 
 // Add endorsement
 export async function addEndorsement(userId: string, endorserId: string, skill: string) {
+  const db = await getDb();
   const userRef = doc(db, 'users', userId);
   
   await updateDoc(userRef, {
@@ -101,6 +103,7 @@ export async function awardBadge(userId: string, badgeId: keyof typeof BADGES) {
     earnedAt: new Date(),
   };
 
+  const db = await getDb();
   const userRef = doc(db, 'users', userId);
   
   await updateDoc(userRef, {

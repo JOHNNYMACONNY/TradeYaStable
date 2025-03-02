@@ -1,5 +1,5 @@
-import { db } from '../lib/firebase';
-import { collection, query, where, getDocs, runTransaction, doc } from 'firebase/firestore';
+import { getDb } from '../lib/firebase';
+import { collection, query, where, getDocs, runTransaction, doc, Firestore } from 'firebase/firestore';
 
 /**
  * Converts a display name to a username format
@@ -33,6 +33,7 @@ export function isValidUsername(username: string): boolean {
  * Returns true if username is available, false if taken
  */
 export async function isUsernameAvailable(username: string): Promise<boolean> {
+  const db = await getDb();
   const usersRef = collection(db, 'users');
   const q = query(usersRef, where('username', '==', username));
   const querySnapshot = await getDocs(q);
@@ -82,6 +83,7 @@ export async function updateUsername(userId: string, newUsername: string): Promi
     throw new UsernameError('Username is already taken');
   }
 
+  const db = await getDb();
   const userRef = doc(db, 'users', userId);
 
   await runTransaction(db, async (transaction) => {

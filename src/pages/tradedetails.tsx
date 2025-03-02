@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { doc, getDoc, updateDoc, addDoc, collection, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { getDb } from '../lib/firebase';
 import { MessageSquare, User, Calendar, CheckCircle2, AlertCircle } from 'lucide-react';
 import type { Trade, UserProfile } from '../types';
 import { XP_CONFIG, awardExperience, checkAndAwardBadges } from '../lib/reputation';
@@ -24,6 +24,7 @@ export function TradeDetails() {
       if (!id) return;
 
       try {
+        const db = await getDb();
         const tradeDoc = await getDoc(doc(db, 'trades', id));
         if (!tradeDoc.exists()) {
           setError('Trade not found');
@@ -54,6 +55,7 @@ export function TradeDetails() {
     setStartingChat(true);
     try {
       // Check if a conversation already exists
+      const db = await getDb();
       const conversationsRef = collection(db, 'conversations');
       const q = query(
         conversationsRef,
@@ -98,6 +100,7 @@ export function TradeDetails() {
 
     setUpdatingStatus(true);
     try {
+      const db = await getDb();
       await updateDoc(doc(db, 'trades', trade.id), {
         status: newStatus,
         updatedAt: serverTimestamp()

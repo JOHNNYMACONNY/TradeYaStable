@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { getDocs, onSnapshot, query, QueryConstraint, DocumentData } from 'firebase/firestore';
-import { collections, withRetry } from '../lib/firebase';
+import { collection, onSnapshot, query, QueryConstraint, DocumentData } from 'firebase/firestore';
+import { getDb, withRetry } from '../lib/firebase';
 
 interface FirestoreState<T> {
   data: T[];
@@ -9,7 +9,7 @@ interface FirestoreState<T> {
 }
 
 export function useFirestore<T extends DocumentData>(
-  collectionName: keyof ReturnType<typeof collections>,
+  collectionName: string,
   queryConstraints: QueryConstraint[] = []
 ) {
   const [state, setState] = useState<FirestoreState<T>>({
@@ -23,9 +23,14 @@ export function useFirestore<T extends DocumentData>(
     
     const setupSubscription = async () => {
       try {
-        const cols = await collections();
-        const collectionRef = cols[collectionName];
+        console.debug(`Setting up Firestore subscription for ${collectionName}`, {
+          queryConstraints: queryConstraints.map(qc => qc.type)
+        });
+        
+        const db = await getDb();
+        const collectionRef = collection(db, collectionName);
         if (!collectionRef) {
+          console.error(`Collection ${collectionName} not found`);
           setState({
             data: [],
             loading: false,
@@ -36,30 +41,47 @@ export function useFirestore<T extends DocumentData>(
 
         // Set up real-time listener with retry mechanism
         const unsub = await withRetry(
-          () =>
-            onSnapshot(
-              query(collectionRef, ...queryConstraints),
-              (snapshot) => {
-                const data = snapshot.docs.map((doc) => ({
-                  id: doc.id,
-                  ...doc.data(),
-                })) as T[];
+          () => new Promise<() => void>((resolve, reject) => {
+            try {
+              const unsubscribe = onSnapshot(
+                query(collectionRef, ...queryConstraints),
+                (snapshot) => {
+                  console.debug(`Received Firestore snapshot for ${collectionName}:`, {
+                    documentCount: snapshot.docs.length,
+                    timestamp: new Date().toISOString()
+                  });
 
-                setState({
-                  data,
-                  loading: false,
-                  error: null,
-                });
-              },
-              (error) => {
-                console.error(`Firestore subscription error for ${collectionName}:`, error);
-                setState((prev) => ({
-                  ...prev,
-                  loading: false,
-                  error: error as Error,
-                }));
-              }
-            ),
+                  const data = snapshot.docs.map((doc) => ({
+                    id: doc.id,
+                    ...doc.data(),
+                  })) as T[];
+
+                  setState({
+                    data,
+                    loading: false,
+                    error: null,
+                  });
+                },
+                (error) => {
+                  console.error(`Firestore subscription error for ${collectionName}:`, {
+                    error,
+                    code: error.code,
+                    message: error.message,
+                    timestamp: new Date().toISOString()
+                  });
+                  setState((prev) => ({
+                    ...prev,
+                    loading: false,
+                    error: error as Error,
+                  }));
+                  reject(error);
+                }
+              );
+              resolve(unsubscribe);
+            } catch (error) {
+              reject(error);
+            }
+          }),
           3, // maxRetries
           1000, // baseDelay
           (attempt, error) => {

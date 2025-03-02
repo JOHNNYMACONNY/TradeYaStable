@@ -12,7 +12,7 @@ import {
   Timestamp,
   writeBatch
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { getDb } from './firebase';
 import { Connection, UserProfile } from '../types';
 import { showError, showSuccess } from './alerts';
 
@@ -27,6 +27,8 @@ export async function sendConnectionRequest(fromUserId: string, toUserId: string
     if (fromUserId === toUserId) {
       throw new Error('Cannot connect with yourself');
     }
+
+    const db = await getDb();
 
     // Check if users exist
     const [fromUser, toUser] = await Promise.all([
@@ -54,7 +56,7 @@ export async function sendConnectionRequest(fromUserId: string, toUserId: string
       throw new Error('Connection request already exists');
     }
 
-    // Create connection request in both collections
+    // Create connection requests in batch
     const batch = writeBatch(db);
     const timestamp = serverTimestamp();
 
@@ -91,6 +93,8 @@ export async function getConnectionStatus(userId: string, otherUserId: string): 
       throw new Error('Both user IDs are required');
     }
 
+    const db = await getDb();
+    
     // Check both received and sent requests
     const [receivedRequest, sentRequest] = await Promise.all([
       getDocs(query(
