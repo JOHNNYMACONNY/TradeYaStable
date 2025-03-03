@@ -4,7 +4,7 @@ import { useAuth } from './contexts/AuthContext';
 import { useAdmin } from './contexts/AdminContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AdminRoute } from './components/AdminRoute';
-import { Login } from './pages/Login';
+import { Login } from './pages/login';
 import { Register } from './pages/Register';
 import { Discover } from './pages/Discover';
 import { Profile } from './pages/Profile';
