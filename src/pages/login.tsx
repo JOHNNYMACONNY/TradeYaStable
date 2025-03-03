@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { LogIn, Mail, AlertCircle, HelpCircle } from 'lucide-react';
+import { Login, Mail, AlertCircle, HelpCircle } from 'lucide-react';
 import { FirebaseError } from 'firebase/app';
 
 export function Login() {
