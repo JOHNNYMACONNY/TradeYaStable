@@ -1,0 +1,23 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["jest", "node"]
+  },
+  "include": [
+    "src/**/*",
+    "src/__tests__/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "build",
+    "coverage",
+    "storybook-static",
+    "playwright-report",
+    "scripts/**/*",
+    "e2e/**/*",
+    "src/**/*.stories.*",
+    "src/components/ui/stories/**/*"
+  ]
+}

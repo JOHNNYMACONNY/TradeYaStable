@@ -1,0 +1,59 @@
+name: Security Rules Tests
+
+on:
+  pull_request:
+    paths:
+      - 'firestore.rules'
+      - 'firestore.indexes.json'
+      - 'src/__tests__/**'
+      - 'src/__mocks__/firebaseRules.js'
+      - 'src/services/**'
+      - 'src/pages/**Challenges**'
+      - 'src/types/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-security-rules:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java (Temurin 17)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies (CI)
+        run: npm ci
+
+      - name: Run Firestore security tests via emulator
+        run: |
+          npx firebase emulators:exec --only firestore \
+            "npx jest --config jest.config.security.ts --testPathPattern=src/__tests__/challenges.security.test.ts --runInBand"
+
+      - name: Archive Jest results (if any)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jest-security-results
+          path: |
+            junit.xml
+            coverage
+          if-no-files-found: ignore
+
